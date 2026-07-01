@@ -8,10 +8,11 @@ Working guide for any AI coding agent (Claude Code, Codex, …) and any teammate
 
 ## What this is
 
-We're **team t32** ("AI has SKILLS what do u have"), an AI agency; **McContext** (a burger chain) is
-our client. We build agents for 4 back-office jobs, prove them on a graded **bench**, and build a
-product + pitch around the **finance** one (the flagship). Members: Aman (agent + eval infra),
-Swapnil (product + video), Karan (product + approach).
+We're **team t32** ("AI has SKILLS what do u have"), an AI agency; **McContext** (a US burger chain) is
+our client. We're going **all-in on Penny — the finance & controls challenge** (`agents/finance/`):
+build the agent, prove it on the graded **bench**, and build the product + pitch around it. We are
+**not** building the other three challenges. Details + strategy: `docs/challenges.md`. Members: Aman
+(agent + eval infra), Swapnil (product + video), Karan (product + approach).
 
 ## The one thing to internalize
 
@@ -32,9 +33,10 @@ you deploy. → `docs/decisions/0001-local-first-eval.md`.
 
 ## Onboarding & skills (Claude Code)
 
-New teammate in a fresh clone → run **`/onboard`** (checks setup, installs deps, verifies your
-subscription auth, runs the worked example). Standing up an agent+suite for a challenge brief → run
-**`/new-challenge`**. Setup reference: `docs/setup.md`. Skills live in `.claude/skills/`.
+New teammate in a fresh clone → run **`/onboard`** (checks setup, installs deps, wires the creds,
+verifies against the live data). Before you deploy or post an update → run **`/verify`** (read-only
+preflight; the "don't post random shit until it's green" gate). `/new-challenge` scaffolds a new
+challenge if we ever pivot. Setup reference: `docs/setup.md`. Skills live in `.claude/skills/`.
 
 ## Commands (run from repo root; `make setup` once)
 
@@ -71,6 +73,9 @@ date suffixes; these models use adaptive thinking (no `budget_tokens`/`temperatu
   comments concise and purposeful (explain *why*, not *what*).
 - Agent behavior lives in `agent.yaml` `system` + `skills/`, not scattered in code. Domain knowledge
   goes in a `domain-notes`-style skill (like the drive-thru `menu` skill), not hardcoded.
+- **Don't hardcode — lean on the model + live data.** Prefer "read `fin_policy` and apply it" over
+  baking in `$5 / 0.5% / 30%`; never encode expected answers. Hardcoded values go stale, likely score
+  negatively, and waste the model's real strength (reasoning over real data). → `docs/decisions/0005`.
 
 ## Boundaries
 

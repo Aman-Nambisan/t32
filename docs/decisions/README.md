@@ -13,3 +13,4 @@ whenever we make a non-obvious call (a framework/model/structure choice, a scori
 | [0002](0002-model-routing.md) | Central model routing; not Opus-only |
 | [0003](0003-finance-flagship.md) | Finance is the flagship product; other 3 are bench-only |
 | [0004](0004-deploy-parity.md) | Deploy composes the same system+skills as local (parity) |
+| [0005](0005-no-hardcoding.md) | Don't hardcode; lean on the model's intelligence + live data |

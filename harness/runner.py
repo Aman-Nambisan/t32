@@ -36,6 +36,15 @@ from claude_agent_sdk import (
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
+# Company action/write tools. Blocked in readonly mode (the mock-bench default) so local runs can
+# NEVER write to the graded store — the real platform bench uses the full toolset. Extend if new
+# write tools appear (discover them with a read-only `make verify`).
+WRITE_TOOLS = [
+    "submit_match_exception", "submit_duplicate_payment", "submit_loss_flag", "submit_cogs_variance",
+    "submit_cash_variance", "submit_variance", "submit_forecast", "submit_reorder", "submit_markdown",
+    "submit_answer", "submit_report", "create_ticket", "escalate", "issue_credit", "issue_refund",
+]
+
 
 def _load_env() -> None:
     """Load repo-root `.env` (yours) or `.env.example` (fallback) into the environment without
@@ -122,7 +131,10 @@ def _remote_mcp_servers(entries: list[dict]):
             print(f"  [harness] skipping mctools entry (mapping needs `name`): {entry!r}")
             continue
         if entry.get("url"):
-            servers[name] = {"type": entry.get("transport", "http"), "url": ex(str(entry["url"]))}
+            srv = {"type": entry.get("transport", "http"), "url": ex(str(entry["url"]))}
+            if entry.get("headers"):   # e.g. Authorization: "Bearer ${MCP_AUTH_TOKEN}" — ${VARS} expanded
+                srv["headers"] = {k: ex(str(v)) for k, v in entry["headers"].items()}
+            servers[name] = srv
         elif entry.get("command"):
             servers[name] = {"type": "stdio", "command": ex(str(entry["command"])),
                              "args": [ex(str(a)) for a in (entry.get("args") or [])],
@@ -136,7 +148,9 @@ def _remote_mcp_servers(entries: list[dict]):
     return servers, allowed
 
 
-def build_options(agent_dir: str) -> ClaudeAgentOptions:
+def build_options(agent_dir: str, readonly: bool = False) -> ClaudeAgentOptions:
+    """Build SDK options for the agent. `readonly=True` (the mock-bench default) blocks the write/
+    action tools so a local run can never touch the graded store."""
     model, system = load_agent(agent_dir)
     cfg = yaml.safe_load((pathlib.Path(agent_dir) / "agent.yaml").read_text()) or {}
     entries = cfg.get("mctools") or []
@@ -148,15 +162,22 @@ def build_options(agent_dir: str) -> ClaudeAgentOptions:
         servers["custom"] = create_sdk_mcp_server(name="custom", version="1.0.0", tools=fn_tools)
         allowed.append("mcp__custom")
 
+    disallowed: list[str] = []
+    if readonly:  # block the action/write tools on every declared MCP server
+        disallowed = [f"mcp__{name}__{t}" for name in servers for t in WRITE_TOOLS]
+
     return ClaudeAgentOptions(
         model=model,
         system_prompt=system,
         mcp_servers=servers,
         # scoped to exactly what the agent declares — deliberately NOT the ambient/built-in tools
-        # a deployed managed agent wouldn't have either.
+        # a deployed managed agent wouldn't have either. strict_mcp_config isolates to the declared
+        # MCPs so no ambient/personal MCP server leaks in.
         allowed_tools=allowed,
+        disallowed_tools=disallowed,
         tools=[],
         setting_sources=[],
+        strict_mcp_config=True,
     )
 
 
@@ -165,10 +186,10 @@ class Conversation:
     state persists for the life of the object. `.tool_calls` is the running trace (what the judge
     reads). `.transcript` is the full [{role, text}] history."""
 
-    def __init__(self, agent_dir: str):
+    def __init__(self, agent_dir: str, readonly: bool = False):
         _load_env()
         self.agent_dir = agent_dir
-        self.options = build_options(agent_dir)
+        self.options = build_options(agent_dir, readonly=readonly)
         self.model = self.options.model
         self.tool_calls: list[dict] = []      # every tool the agent calls — the "trace"
         self.transcript: list[dict] = []       # [{role: "user"|"agent", text: str}]

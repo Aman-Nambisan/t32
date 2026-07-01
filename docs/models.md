@@ -55,8 +55,14 @@ Two different meters:
 - **Batch, when it fits.** The Batch API is 50% off for non-latency-sensitive work (not the bench,
   but useful for offline eval-dataset generation).
 
-## Watch the $50
+## Watch the $50 — it's scored
 
-Check remaining spend in the Console (Managed Agents workspace `hack-2026-t32`). If a bench run
-costs more than expected, drop the agent to a cheaper model or lower `effort` before the next run —
-you only get **3 lives per challenge**, so don't waste them on a config you haven't validated locally.
+Cost efficiency is a graded line: **under $50 = +5 · $50–100 = 0 · over $100 = −5** (Shubhankar,
+#atlan-ai-hackathon-2026). So every CMA session and bench run spends points, not just dollars. Rules:
+
+- Do **essentially all work locally** (free on the subscription). Touch CMA only for the real bench
+  and the occasional deliberate `/cma-check` — never casually.
+- Check remaining spend in the Console (workspace `hack-2026-t32`). 3 lives per challenge — never
+  spend one on a config you haven't validated locally first.
+- If a run costs more than expected, drop the agent to a cheaper model or lower `effort` before the
+  next one. Staying under $50 is worth a full +5.

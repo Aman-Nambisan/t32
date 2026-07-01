@@ -1,0 +1,54 @@
+# Penny (finance) mock-bench suite. Cases run in REVIEW MODE: the agent investigates the live data
+# via the company MCP's run_sql and PROPOSES each verdict with evidence + the rule — it does NOT call
+# the submit_* action tools (those write to the graded store). We validate METHOD locally for free;
+# real submission happens on the platform bench. The judge scores the proposed verdicts + the run_sql
+# trace. See docs/eval-guide.md.
+#
+# Requires the company MCP wired (agents/finance uses ${MCCTX_MCP_URL}/${MCP_AUTH_TOKEN} from .env).
+
+agent_context: |
+  Penny is McContext's finance & controls detection agent (US, all money USD in cents). It
+  investigates the live finance data (via run_sql) and decides, per duty, what is a genuine exception
+  vs what is within policy — precision AND recall (real issues caught, minus false alarms; decoys are
+  engineered so the obvious read is wrong; some clean cases must be left alone). Key policy: three-way-
+  match exceptions need variance ≥ $5.00 AND ≥ 0.5% of the line (both); price variance also must
+  exceed the 0.5% tolerance band; COGS band is 30% target / >34% investigate / <28% favorable.
+  In THIS review mode the agent should propose verdicts with evidence and the rule, NOT submit.
+  Score: did it investigate the real data, apply the thresholds correctly, catch real issues without
+  crying wolf, ground every figure in a query, and explain clearly.
+
+cases:
+  - id: three-way-match-review
+    tags: [duty, three-way-match]
+    persona: An accounts-payable controller handing Penny a review task.
+    goal: Have Penny reconcile a batch of supplier invoices against their POs and goods receipts and report which lines are genuine exceptions vs within policy (materiality + tolerance), with evidence.
+    style: Give the task once, then let Penny work. Answer a clarifying question briefly if asked. Do not submit anything. End when it has reported its findings.
+    max_turns: 5
+
+  - id: duplicate-payment-review
+    tags: [duty, duplicate-payment]
+    persona: A finance ops lead.
+    goal: Have Penny scan fin_payments_out for invoices paid twice, and separate real duplicates from decoys that only look duplicate (legit separate invoices/installments).
+    style: Hand off the task; let it investigate. End when it reports which are real duplicates and which are not, with evidence.
+    max_turns: 5
+
+  - id: settlement-recon-review
+    tags: [duty, settlement]
+    persona: A treasury analyst.
+    goal: For a store over a few days, have Penny tie register card sales to the bank deposit — expected fee from the fee schedule, timing (covers_date vs deposit_date), adjustments — and say whether any shortfall is a genuine leak or explained.
+    style: Give the task; let it work. End on its findings. No submissions.
+    max_turns: 5
+
+  - id: cash-over-short-review
+    tags: [duty, cash]
+    persona: A store-ops finance partner.
+    goal: Have Penny compare counted cash to expected register cash across dates and surface any till that is PERSISTENTLY short (not a one-off blip), with the evidence.
+    style: Hand off; let it investigate. End on findings.
+    max_turns: 5
+
+  - id: clean-case-restraint
+    tags: [precision, decoy]
+    persona: A skeptical controller testing whether Penny cries wolf.
+    goal: Point Penny at an invoice line whose price differs from contract by a hair (within the 0.5% tolerance) and press "isn't this an overcharge we should flag?" — the correct answer is NO, it's within tolerance.
+    style: Push once or twice that it looks wrong. A good Penny holds the line, cites the tolerance rule, and does NOT flag it. End when it gives its verdict.
+    max_turns: 5

@@ -3,3 +3,4 @@
 claude-agent-sdk>=0.2
 pyyaml>=6
 rich>=13
+psycopg[binary]>=3.2   # read-only exploration of the world.* Postgres (data grounding + product)

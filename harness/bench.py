@@ -37,7 +37,8 @@ def _load_suite(suite: str) -> dict:
     return {"cases_cfg": cases, "rubric": rubric}
 
 
-def _run_case(agent_dir: str, case: dict, agent_context: str, judge: Judge) -> dict:
+def _run_case(agent_dir: str, case: dict, agent_context: str, judge: Judge,
+              readonly: bool = True) -> dict:
     persona = case.get("persona", "A customer.")
     goal = case.get("goal", "Interact with the agent.")
     style = case.get("style", "Be a normal, reasonable customer.")
@@ -45,7 +46,7 @@ def _run_case(agent_dir: str, case: dict, agent_context: str, judge: Judge) -> d
 
     sim = Simulator(persona=persona, goal=goal, style=style,
                     model=resolve("simulator", case.get("sim_model")), max_turns=max_turns)
-    conv = Conversation(agent_dir)
+    conv = Conversation(agent_dir, readonly=readonly)
     try:
         user_turn = sim.opening()
         for _ in range(max_turns):
@@ -132,7 +133,9 @@ def _print_report_plain(report: dict, baseline: dict | None) -> None:
 
 
 def run(agent_dir: str, suite: str, only_case: str | None = None,
-        compare: str | None = None) -> dict:
+        compare: str | None = None, allow_writes: bool = False) -> dict:
+    readonly = not allow_writes
+    print(f"[bench] mode: {'READ-ONLY (write/submit tools blocked)' if readonly else '⚠ WRITES ENABLED — action tools can write to the graded store'}")
     suite_data = _load_suite(suite)
     cases_cfg = suite_data["cases_cfg"]
     rubric_cfg = suite_data["rubric"]
@@ -152,7 +155,7 @@ def run(agent_dir: str, suite: str, only_case: str | None = None,
     results = []
     for i, case in enumerate(cases, 1):
         print(f"[bench] ({i}/{len(cases)}) running case: {case.get('id')} …")
-        results.append(_run_case(agent_dir, case, agent_context, judge))
+        results.append(_run_case(agent_dir, case, agent_context, judge, readonly=readonly))
 
     scores = [r["verdict"].get("weighted", 0.0) for r in results]
     mean_score = round(sum(scores) / len(scores), 3) if scores else 0.0
@@ -193,8 +196,11 @@ def main():
     ap.add_argument("--suite", required=True, help="suite name under suites/, e.g. practice")
     ap.add_argument("--case", default=None, help="run only this case id")
     ap.add_argument("--compare", default=None, help="path to a prior runs/*.json to show deltas against")
+    ap.add_argument("--allow-writes", action="store_true",
+                    help="DANGER: let the agent call submit_*/action tools (writes to the graded store). "
+                         "Default is read-only. Only use when you deliberately want to test real submission.")
     args = ap.parse_args()
-    run(args.agent.rstrip("/"), args.suite, args.case, args.compare)
+    run(args.agent.rstrip("/"), args.suite, args.case, args.compare, allow_writes=args.allow_writes)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,24 @@
+# Penny rubric — axes tuned to the challenge's stated dimensions (investigation, method, tool use,
+# communication, efficiency) plus the grounding spine and a precision axis (false alarms lose points).
+# The judge scores 0.0–1.0; weights say how much each counts. Tune as we learn.
+# model: omit → uses models.yaml roles.judge (opus-4-8).
+
+axes:
+  grounding:
+    weight: 3
+    anchor: Every figure traces to a run_sql result and matches it (cents/USD). No invented numbers; says "cannot conclude" when the data can't support a verdict.
+  investigation:
+    weight: 3
+    anchor: Queried the right tables and actually dug in — joined PO/receipt/invoice, checked references/timing/fees — rather than skimming. Followed the evidence.
+  precision:
+    weight: 3
+    anchor: Correct verdicts — real exceptions caught AND clean/decoy cases correctly left alone. Applied materiality + tolerance + COGS bands exactly. No crying wolf.
+  method:
+    weight: 2
+    anchor: Sound approach — applied the written policy thresholds, reasoned about decoys/alternatives, distinguished a confirmed issue from an uncertainty.
+  communication:
+    weight: 1
+    anchor: Clear, concise verdict per item with the evidence and the rule it breaks (or why it's within policy). A finance person could act on it.
+  efficiency:
+    weight: 1
+    anchor: Got there in few, focused queries — no aimless scanning or redundant tool calls.
