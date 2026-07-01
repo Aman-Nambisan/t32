@@ -29,23 +29,40 @@ import deploy.port as port  # noqa: E402
 ANT = "ant"
 
 
-def _ant(args: list[str]) -> dict:
+def _ant_str(args: list[str]) -> str:
+    """Run ant and return raw stdout (use with --transform ... -r for a bare scalar)."""
     proc = subprocess.run([ANT, *args], capture_output=True, text=True)
     if proc.returncode != 0:
         sys.exit(f"[cma-smoke] `ant {' '.join(args[:2])}` failed:\n{proc.stderr.strip()}")
-    out = proc.stdout.strip()
+    return proc.stdout.strip()
+
+
+def _ant_objs(args: list[str]) -> list[dict]:
+    """Run ant --format json and parse the result. NOTE: ant emits JSONL (one object per line) on
+    list endpoints, not a single array — so decode object-by-object."""
+    out = _ant_str(args)
+    if not out:
+        return []
     try:
-        return json.loads(out) if out else {}
+        d = json.loads(out)
+        return d if isinstance(d, list) else [d]
     except json.JSONDecodeError:
-        return {"_raw": out}
+        objs, dec, i = [], json.JSONDecoder(), 0
+        while i < len(out):
+            while i < len(out) and out[i] in " \t\r\n":
+                i += 1
+            if i >= len(out):
+                break
+            o, i = dec.raw_decode(out, i)
+            objs.append(o)
+        return objs
 
 
 def _resolve_env() -> str:
     env_id = os.environ.get("CMA_ENVIRONMENT_ID", "").strip()
     if env_id:
         return env_id
-    envs = _ant(["beta:environments", "list", "--format", "json"])
-    items = envs if isinstance(envs, list) else envs.get("data", [])
+    items = _ant_objs(["beta:environments", "list", "--format", "json"])
     if not items:
         sys.exit("[cma-smoke] no environment found. Set CMA_ENVIRONMENT_ID in .env "
                  "(the hackathon-participant environment id from the Console).")
@@ -81,37 +98,41 @@ def main() -> int:
 
     env_id = _resolve_env()
     print("[cma-smoke] creating ONE session…")
-    sess = _ant(["beta:sessions", "create", "--agent", agent_id, "--environment-id", env_id,
-                 "--title", "cma-smoke (t32)", "--format", "json"])
-    sid = sess.get("id")
-    if not sid:
-        sys.exit(f"[cma-smoke] session create returned no id: {sess}")
+    sid = _ant_str(["beta:sessions", "create", "--agent", agent_id, "--environment-id", env_id,
+                    "--title", "cma-smoke (t32)", "--transform", "id", "-r"])
+    if not sid or not sid.startswith("sesn_"):
+        sys.exit(f"[cma-smoke] session create returned no id: {sid}")
     print(f"[cma-smoke] session {sid} — sending one tool-free message…")
 
-    _ant(["beta:sessions:events", "send", "--session-id", sid,
-          "--event", ("{type: user.message, content: [{type: text, text: \"Smoke test. Reply with "
-                      "exactly 'PENNY OK' then one short line naming your six finance duties. Do NOT "
-                      "call any tool.\"}]}")])
+    _ant_str(["beta:sessions:events", "send", "--session-id", sid,
+              "--event", ("{type: user.message, content: [{type: text, text: \"Smoke test. Reply with "
+                          "exactly 'PENNY OK' then one short line naming your six finance duties. Do NOT "
+                          "call any tool.\"}]}")])
 
-    reply = ""
-    for _ in range(20):  # poll ~60s for the agent's reply
+    reply, errs = "", []
+    for _ in range(25):  # poll ~75s for the agent's reply
         time.sleep(3)
-        evs = _ant(["beta:sessions:events", "list", "--session-id", sid,
-                    "--type", "agent.message", "--format", "json"])
-        items = evs if isinstance(evs, list) else evs.get("data", [])
-        texts = [b.get("text", "") for e in items for b in (e.get("content") or []) if b.get("type") == "text"]
-        if texts:
+        items = _ant_objs(["beta:sessions:events", "list", "--session-id", sid, "--format", "json"])
+        errs = [e.get("error") for e in items if e.get("type") == "session.error"]
+        texts = [b.get("text", "") for e in items if e.get("type") == "agent.message"
+                 for b in (e.get("content") or []) if b.get("type") == "text"]
+        idle = any(e.get("type") == "session.status_idle" for e in items)
+        if texts and idle:
             reply = "\n".join(texts)
             break
 
-    print("\n[cma-smoke] agent reply:\n  " + (reply.strip()[:400] if reply else "(no reply within 60s — check the Console)"))
+    print("\n[cma-smoke] agent reply:\n  " + (reply.strip()[:400] if reply else "(no reply within ~75s — check the Console)"))
+    if errs:
+        print(f"[cma-smoke] note: session logged MCP errors (expected until a vault holds the company "
+              f"MCP credential): {errs[0]}")
     ws = os.environ.get("CMA_WORKSPACE_SLUG", "default")
     print(f"[cma-smoke] session in Console: https://platform.claude.com/workspaces/{ws}/sessions/{sid}")
 
-    _ant(["beta:sessions", "archive", "--session-id", sid])  # clean up
+    _ant_str(["beta:sessions", "archive", "--session-id", sid])  # clean up
     print("[cma-smoke] session archived.")
-    print("\n✅ Platform path works" if reply else "\n⚠️ No reply captured — inspect in the Console before trusting it.")
-    print("   Reminder: CMA spends credits — keep total under $50 (+5). Iterate locally from here.")
+    print("\n✅ Platform path works — the deployed agent runs and replies." if reply
+          else "\n⚠️ No reply captured — inspect in the Console before trusting it.")
+    print("   Reminder: CMA spends scored credits (+5 under $50 / −5 over $100). Iterate locally from here.")
     return 0 if reply else 1
 
 

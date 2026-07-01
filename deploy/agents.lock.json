@@ -1,1 +1,7 @@
-{}
+{
+  "agents/finance": {
+    "agent_id": "agent_018nzcXY3KwQDGUbxhqzZM9o",
+    "name": "finance",
+    "last_version": 1
+  }
+}

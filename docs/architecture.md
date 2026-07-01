@@ -48,10 +48,14 @@ shares one id per agent and versions accumulate.
 both an `mcp_servers` entry and a `tools` `mcp_toolset` referencing it by name (an unreferenced server
 is rejected), with `permission_policy: always_allow` — the default `always_ask` **stalls the
 unattended bench**, so this is the single highest-value deploy fix. MCP **auth** (the token) attaches
-at session/bench time via a **vault** (exact URL match), never on the agent def — configure it on the
-platform/Console (open item; `docs/research/engineering-brief.md` §8). `builtin_tools: true` in
-agent.yaml adds the `agent_toolset_20260401` built-in tools (off by default). See
-`docs/decisions/0004-deploy-parity.md` and the brief §2.2.
+at session/bench time via a **vault** (exact URL match), never on the agent def. **Confirmed on the
+first CMA smoke run:** the deployed agent runs and replies, but any session logs
+`mcp_authentication_failed_error` — *"no credential is stored for this server URL"* — until a vault
+holds the company MCP credential. **So before a real bench data run: create a vault with the company
+MCP token, with `mcp_server_url` matching `${MCCTX_MCP_URL}` exactly, and attach it via `vault_ids`
+at session create.** (Open task; `docs/research/engineering-brief.md` §2.2/§8.) `builtin_tools: true`
+in agent.yaml adds the `agent_toolset_20260401` built-in tools (off by default). See
+`docs/decisions/0004-deploy-parity.md`.
 
 **Multi-agent / sub-agents (the "final thing").** A CMA can be a `multiagent` coordinator that
 delegates to a roster of other agents (each its own thread, model, tools) — one level deep. This is
