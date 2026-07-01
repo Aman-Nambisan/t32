@@ -1,0 +1,21 @@
+# secrets
+.env
+*.key
+
+# python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.ipynb_checkpoints/
+
+# harness run outputs (local dev artifacts; share a specific one by force-adding if needed)
+runs/
+
+# observability (local trace data)
+traces/data/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,30 @@
+# Central model routing — the ONE place to pick models. Swap here and every harness role follows.
+#
+# WHY THIS EXISTS: we are NOT locked to Opus. Cost matters (the CMA workspace is capped at $50), and
+# smaller/faster models (Sonnet 4.6, Haiku 4.5) are the right call for many roles. This file lets you
+# route each role to the cheapest model that still does the job, and swap globally in one edit.
+#
+# PRECEDENCE (most specific wins):
+#   explicit setting  >  role default below  >  hardcoded fallback (claude-opus-4-8)
+#   - agent model:      agents/<x>/agent.yaml `model:`   -> falls back to roles.agent
+#   - judge model:      suites/<x>/rubric.yaml `model:`  -> falls back to roles.judge
+#   - simulator model:  a case's `sim_model:`            -> falls back to roles.simulator
+#
+# COST NOTE: local dev + the mock bench run on your Claude SUBSCRIPTION (free-ish) — so model choice
+# for `simulator`/`judge` is about quality + speed, not dollars. Only the AGENT's model on the
+# DEPLOYED CMA spends the $50. Pick the agent model per challenge (quality vs per-run cost); see
+# docs/models.md.
+
+roles:
+  agent:     claude-opus-4-8      # the agent under test / shipped. Per-agent override in agent.yaml wins.
+  simulator: claude-sonnet-4-6    # role-plays the customer to drive the convo. Fast + cheap is plenty.
+  judge:     claude-opus-4-8      # scores transcripts + traces. Keep it sharp — the signal depends on it.
+  subagent:  claude-haiku-4-5     # small delegated subtasks (classify/extract/route) in a multi-agent CMA.
+
+# Reference: current lineup + pricing per 1M tokens (input / output). Full guidance in docs/models.md.
+# Verified against the Anthropic model catalog (2026-06). There is NO "claude-sonnet-5" — latest Sonnet is 4.6.
+catalog:
+  claude-fable-5:    { input: 10, output: 50, context: 1000000, use: "most capable; priciest — reserve for the hardest reasoning" }
+  claude-opus-4-8:   { input: 5,  output: 25, context: 1000000, use: "top Opus; default for quality-critical work (judge, hard agents)" }
+  claude-sonnet-4-6: { input: 3,  output: 15, context: 1000000, use: "best speed/intelligence balance; great default agent + simulator" }
+  claude-haiku-4-5:  { input: 1,  output: 5,  context: 200000,  use: "fastest/cheapest; simple scoped subtasks, routers, sub-agents" }

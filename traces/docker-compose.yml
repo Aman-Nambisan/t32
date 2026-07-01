@@ -1,0 +1,16 @@
+# Local trace sink for the harness + our own Claude Code sessions. HyperDX all-in-one: one container,
+# no auth in local mode, ingests metrics + logs + traces. UI at http://localhost:8080.
+#   Start:  make trace-up   (or: docker compose -f traces/docker-compose.yml up -d)
+#   Then:   source the OBSERVABILITY block from .env into your shell before running claude / the harness.
+# Why HyperDX: single container covers all three OTEL signals (Langfuse ingests traces only, no gRPC).
+# For an LLM/agent-trace lens on top, add Langfuse Cloud free tier (traces only) — see traces/README.md.
+services:
+  hyperdx:
+    image: docker.hyperdx.io/hyperdx/hyperdx-local:2-beta
+    container_name: t32-hyperdx
+    ports:
+      - "4318:4318"   # OTLP http/protobuf  (what .env points at — the universal default)
+      - "4317:4317"   # OTLP gRPC
+      - "8080:8080"   # HyperDX UI
+      - "8123:8123"   # ClickHouse
+    restart: unless-stopped
