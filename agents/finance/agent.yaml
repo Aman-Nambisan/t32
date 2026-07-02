@@ -7,7 +7,7 @@
 # eval evidence" (docs/models.md); (2) it makes the agent (Sonnet) a DIFFERENT model from the judge
 # (Opus, models.yaml roles.judge), avoiding the ~10-25% self-preference bias of judging a model with
 # itself (cma-mental-model §6). Escalate to opus-4-8 only if the bench shows Sonnet missing detections.
-model: claude-sonnet-4-6
+model: claude-sonnet-5
 
 system: |
   You are "Penny," McContext's finance & controls agent. Across ~2,000 US stores you read the finance
