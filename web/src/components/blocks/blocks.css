@@ -1,0 +1,127 @@
+/* In-chat artifact blocks: mount animations + memo print rules. */
+
+@keyframes blk-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.blk-in {
+  animation: blk-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Bars grow from 0 to their inline width (from-only keyframe keeps rounding intact). */
+@keyframes blk-grow {
+  from {
+    width: 0;
+  }
+}
+.blk-grow {
+  animation: blk-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Line draw / donut sweep — pair with pathLength={1} + stroke-dasharray: 1. */
+@keyframes blk-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.blk-draw {
+  stroke-dasharray: 1;
+  animation: blk-draw 1s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Donut segments sweep in via a staggered dasharray transition (durations inline). */
+.blk-donut-seg {
+  transition-property: stroke-dasharray;
+  transition-timing-function: linear;
+}
+
+@keyframes blk-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.blk-fade {
+  animation: blk-fade 0.4s ease-out both;
+}
+
+@keyframes blk-stamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-12deg) scale(2.2);
+  }
+  60% {
+    opacity: 1;
+    transform: rotate(-12deg) scale(0.94);
+  }
+  100% {
+    opacity: 0.9;
+    transform: rotate(-12deg) scale(1);
+  }
+}
+.blk-stamp {
+  animation: blk-stamp 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) 0.5s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blk-in,
+  .blk-grow,
+  .blk-draw,
+  .blk-fade {
+    animation: none !important;
+  }
+  .blk-donut-seg {
+    transition: none !important;
+  }
+  .blk-stamp {
+    animation: none !important;
+    opacity: 0.9;
+    transform: rotate(-12deg);
+  }
+}
+
+/* Print only the memo: MemoCard toggles body.blk-printing + .blk-memo-print
+   around window.print(). Everything else is hidden and un-clipped so the memo
+   lands at the top-left of the page. */
+@media print {
+  body.blk-printing * {
+    visibility: hidden;
+  }
+  body.blk-printing :is(.blk-memo-print, .blk-memo-print *) {
+    visibility: visible;
+  }
+  body.blk-printing *:not(.blk-memo-print, .blk-memo-print *) {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    transform: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+  }
+  body.blk-printing .blk-memo-print {
+    position: absolute !important;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: 42rem;
+    margin: 0;
+    box-shadow: none;
+    animation: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body.blk-printing .blk-noprint {
+    display: none !important;
+  }
+}

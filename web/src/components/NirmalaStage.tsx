@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef } from "react";
+import { Suspense, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, Sparkles } from "@react-three/drei";
@@ -12,6 +12,7 @@ type StageProps = {
   mood: Mood;
   emotion: Emotion;
   energyRef: React.RefObject<number>;
+  dark?: boolean;
 };
 
 function dampTo(current: number, target: number, lambda: number, dt: number) {
@@ -262,33 +263,55 @@ function NirmalaAvatar({ mood, emotion, energyRef }: StageProps) {
   );
 }
 
-export default function NirmalaStage({ mood, emotion, energyRef }: StageProps) {
+export default function NirmalaStage({ mood, emotion, energyRef, dark = false }: StageProps) {
+  // Self-heal: Chrome evicts the oldest WebGL context when a tab exceeds its
+  // quota (other tabs, in-chat 3D blocks, dev reloads). Remount on loss so
+  // the demo never shows a dead white stage.
+  const [glNonce, setGlNonce] = useState(0);
   return (
     <Canvas
+      key={glNonce}
       camera={{ position: [0, 1.45, USE_GLB ? 4.1 : 3.4], fov: 32 }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true }}
       shadows
+      onCreated={({ gl }) => {
+        gl.domElement.addEventListener("webglcontextlost", (e) => {
+          e.preventDefault();
+          setTimeout(() => setGlNonce((n) => n + 1), 400);
+        });
+      }}
     >
-      {/* GLB texture has baked shading — flat, soft light hides seams best */}
-      <ambientLight intensity={USE_GLB ? 1.15 : 0.45} />
-      <directionalLight position={[1.5, 5, 4]} intensity={USE_GLB ? 1.3 : 1.7} color="#FFE3BC" castShadow />
-      <pointLight position={[-2.5, 2, -1.5]} intensity={12} color="#2E8C63" />
-      <pointLight position={[0, 3, -2.5]} intensity={8} color="#D98CB0" />
+      {/* GLB texture has baked shading — flat, soft light hides seams best.
+          Boardroom: dim the key, crimson/violet rims, villain underlight. */}
+      <ambientLight intensity={dark ? 0.55 : USE_GLB ? 1.15 : 0.45} />
+      <directionalLight
+        position={[1.5, 5, 4]}
+        intensity={dark ? 0.55 : USE_GLB ? 1.3 : 1.7}
+        color={dark ? "#FFC9A0" : "#FFE3BC"}
+        castShadow
+      />
+      <pointLight position={[-2.5, 2, -1.5]} intensity={dark ? 26 : 12} color={dark ? "#B3202C" : "#2E8C63"} />
+      <pointLight position={[0, 3, -2.5]} intensity={dark ? 16 : 8} color={dark ? "#6D28D9" : "#D98CB0"} />
+      {dark && <pointLight position={[0, 0.3, 1.0]} intensity={5} color="#FF2E3F" />}
 
       {USE_GLB ? (
         <Suspense fallback={null}>
-          <NirmalaGLB mood={mood} emotion={emotion} energyRef={energyRef} />
+          <NirmalaGLB mood={mood} emotion={emotion} energyRef={energyRef} dark={dark} />
         </Suspense>
       ) : (
         <NirmalaAvatar mood={mood} emotion={emotion} energyRef={energyRef} />
       )}
 
-      <Sparkles count={45} scale={[3.2, 2.6, 3.2]} position={[0, 1.4, 0]} size={2.2} speed={0.3} opacity={0.35} color="#E8C776" />
+      {dark ? (
+        <Sparkles count={35} scale={[3.2, 2.6, 3.2]} position={[0, 1.2, 0]} size={2.6} speed={0.16} opacity={0.32} color="#FF6A3D" />
+      ) : (
+        <Sparkles count={45} scale={[3.2, 2.6, 3.2]} position={[0, 1.4, 0]} size={2.2} speed={0.3} opacity={0.35} color="#E8C776" />
+      )}
       {emotion === "tax" && (
         <Sparkles count={130} scale={[2.6, 3, 2.6]} position={[0, 1.7, 0]} size={5} speed={2.2} opacity={0.85} color="#F2C14E" />
       )}
-      <ContactShadows position={[0, -0.01, 0]} opacity={0.55} scale={7} blur={2.6} far={2.5} />
+      <ContactShadows position={[0, -0.01, 0]} opacity={dark ? 0.75 : 0.55} scale={7} blur={2.6} far={2.5} />
 
       {/* Clamp to the photo-true arc: single-image 3D hallucinates sides/back */}
       <OrbitControls

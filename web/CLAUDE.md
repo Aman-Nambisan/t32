@@ -124,15 +124,27 @@ The site deploys from **this `web/` folder inside the t32 repo** (monorepo, not 
 - One interactive step is on Aman: `railway login` (browser) to link the CLI, or connect via the
   Railway dashboard's GitHub integration.
 
-## Immediate next steps (for the product thread)
+## What's BUILT (as of 2026-07-02, deadline day)
 
-1. Landing page for "Don't Mess With Nirmala" — the pitch above the fold (precision + lineage +
-   Nirmala), aimed at a CFO.
-2. The **two-column CAUGHT / CLEARED ledger** with drill-through cards (seeded/disclosed demo data is
-   fine).
-3. The **money-lineage graph** component (row-backed, clickable to source).
-4. The **3D Nirmala** chatbot: pick an approach (e.g. a glTF/Three.js avatar with lip-sync/idle
-   animation) wired to a chat that speaks in Penny's grounded, can't-be-talked-out-of-it voice.
-5. Produced assets: a short ad + the 10–15 min walkthrough video.
+The app is live at https://t32-production.up.railway.app — user-facing name is **"Narmata"**
+(legal-safe rename; internal identifiers still say nirmala). Shipped:
 
-Keep the app honest about what Penny actually does — the source of truth is `../agents/finance/`.
+1. **3D Narmata** — generated likeness GLB (`public/models/nirmala.glb`, Hunyuan3D v3 via fal.ai,
+   meshopt+webp optimized; pipeline notes in `assets-src/`). Amplitude-driven talk animation (real
+   TTS → AnalyserNode), mood postures, camera clamped to the photo-true arc.
+2. **Emotion engine** — model returns `{reply, emotion}` JSON; three hard-coded reactions (angry
+   "don't be naughty" / baton lathi-charge / tax 50%-he-he-he) drive catchphrases, stage stamps,
+   props, emote layer. Keyword fallback server-side.
+3. **Voice** — `/api/tts` (edge-tts en-IN-NeerjaNeural, md5-cached; Web Speech fallback).
+4. **The Boardroom** (ADR 0007) — PIN-gated dark mode (PIN **2000**): same route, `mode:"boardroom"`
+   → CFO-consigliere persona (tax savings, cloud-cost roast; refuses actual fraud), crimson stage
+   restyle + sunglasses, slower/deeper voice, isolated chat thread. The governance pitch: same
+   agent, different clearance ⇒ different context.
+5. **Generative blocks** — boardroom replies may attach `blocks` (bar/line/donut/stats/memo/coins3d)
+   rendered in-chat (`components/blocks/`); server-sanitized in `api/chat/route.ts`.
+6. **Chat backend on Vercel AI SDK** — swap `createAnthropic` for the CMA agent later; models via
+   `NIRMALA_MODEL` / `NIRMALA_DARK_MODEL` env (default sonnet-4-6).
+
+Still open (post-hackathon): CAUGHT/CLEARED ledger, money-lineage graph, MetaPerson rigged avatar
+(real facial expressions/visemes). Keep the app honest about what Penny actually does — the source
+of truth is `../agents/finance/`.

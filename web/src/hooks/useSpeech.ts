@@ -9,7 +9,9 @@ export function useSpeech() {
   const [speaking, setSpeaking] = useState(false);
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(muted);
-  mutedRef.current = muted;
+  useEffect(() => {
+    mutedRef.current = muted;
+  }, [muted]);
   const energyRef = useRef(0);
 
   const ctxRef = useRef<AudioContext | null>(null);
@@ -76,14 +78,17 @@ export function useSpeech() {
   }, []);
 
   const meterLoop = useCallback(() => {
-    const analyser = analyserRef.current;
-    const freq = freqRef.current;
-    if (!analyser || !freq) return;
-    analyser.getByteFrequencyData(freq);
-    let sum = 0;
-    for (let i = 0; i < freq.length; i++) sum += freq[i];
-    energyRef.current = Math.min(1, (sum / freq.length / 255) * 2.4);
-    rafRef.current = requestAnimationFrame(meterLoop);
+    const step = () => {
+      const analyser = analyserRef.current;
+      const freq = freqRef.current;
+      if (!analyser || !freq) return;
+      analyser.getByteFrequencyData(freq);
+      let sum = 0;
+      for (let i = 0; i < freq.length; i++) sum += freq[i];
+      energyRef.current = Math.min(1, (sum / freq.length / 255) * 2.4);
+      rafRef.current = requestAnimationFrame(step);
+    };
+    step();
   }, []);
 
   const speakSilent = useCallback((text: string): Promise<void> => {
@@ -100,7 +105,7 @@ export function useSpeech() {
   }, []);
 
   const speakWebSpeech = useCallback(
-    (text: string): Promise<void> => {
+    (text: string, dark?: boolean): Promise<void> => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) {
         return speakSilent(text);
       }
@@ -109,7 +114,8 @@ export function useSpeech() {
         const utterance = new SpeechSynthesisUtterance(text);
         if (voiceRef.current) utterance.voice = voiceRef.current;
         utterance.lang = voiceRef.current?.lang ?? "en-IN";
-        utterance.pitch = 1.1;
+        utterance.pitch = dark ? 0.8 : 1.1;
+        utterance.rate = dark ? 0.92 : 1;
         utterance.onstart = () => {
           setSpeaking(true);
           energyRef.current = 1;
@@ -128,14 +134,14 @@ export function useSpeech() {
   );
 
   const speak = useCallback(
-    async (text: string): Promise<void> => {
+    async (text: string, dark?: boolean): Promise<void> => {
       if (mutedRef.current) return speakSilent(text);
 
       try {
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, mode: dark ? "boardroom" : "public" }),
         });
         if (!res.ok) throw new Error(`tts ${res.status}`);
         const blob = await res.blob();
@@ -167,7 +173,7 @@ export function useSpeech() {
           audio.play().catch(reject);
         });
       } catch {
-        return speakWebSpeech(text);
+        return speakWebSpeech(text, dark);
       }
     },
     [meterLoop, speakSilent, speakWebSpeech, unlock],
