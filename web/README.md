@@ -99,6 +99,10 @@ trail, one dashboard, across all six.**
   logged *with the reason* — a split delivery, a processing fee, a contracted price. That's what lets a
   finance team trust the system instead of tuning it out.
 
+These controls patterns are **borrowed from Anthropic's own `financial-services` reference
+implementation** for Claude (e.g. its `gl-reconciler` reconciliation flow) — the same discipline
+Anthropic ships for finance, pointed at McContext's money and adapted to our bench.
+
 ## What it costs
 
 The closest real-world comparable is the **AP recovery-audit industry** (apexanalytix, PRGX, Xelix),
@@ -117,6 +121,17 @@ traditional AP audit, in **near-real-time** instead of a once-a-year sweep. Chea
 the incumbents, into a market they already validated. And the same evidence trail a controller reads to
 trust a flag **is** the auditable basis for the bill — the product and the billing model are the same
 artifact.
+
+## Built for 2,000 stores
+
+Penny doesn't replace the finance team — it's the one controller who can **watch all 2,000 stores at
+once**, and knows better than to cry wolf. The value shows up as a number a CFO remembers: a running
+ledger of **confirmed recovered / prevented dollars** — which is also the billing basis, so the ROI
+and the invoice are the same artifact. An ROI figure sells harder than a clever prompt.
+
+And it's built to roll out at that scale: **multi-tenant, per-store config**, and a
+**humans-overseeing-agents** model that matches how McContext actually operates — Penny surfaces the
+case with its evidence; a human confirms before any money moves.
 
 ## Where this goes
 

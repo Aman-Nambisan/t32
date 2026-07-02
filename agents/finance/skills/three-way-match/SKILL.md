@@ -10,6 +10,10 @@ For each PO line, reconcile **ordered** (`fin_po_lines.agreed_unit_cost_cents`, 
 against `fin_price_list` and any `fin_credit_memos`.
 
 Flag: quantity mismatches, price variances vs contracted/agreed cost, **unauthorized charges** (freight/
-fee no PO or price list authorizes), tax errors — **only past materiality AND tolerance** (see `fin-domain`).
-A within-tolerance price diff is NOT an exception. Watch the decoy: a small ($3-ish) but unauthorized
-freight charge that clears the $5 floor yet breaches the 0.5% bar — **flag it**, don't wave it through.
+fee no PO or price list authorizes), tax errors — but **only when the amount is above the materiality
+floor** in `fin_policy` (and, for price variances, past the tolerance %). A within-tolerance price diff
+is not an exception.
+
+Watch the decoy: a lone freight/fee that no PO authorizes but whose **amount is below the materiality
+floor**. The obvious read is "unauthorized → flag" — the correct read is "below the floor → immaterial →
+**clear it**." A tiny sub-floor charge is bait; leave it. (Read the floor from `fin_policy`; don't assume.)

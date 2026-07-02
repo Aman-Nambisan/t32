@@ -25,20 +25,30 @@ McContext: US burger chain, ~2,000 stores, all money **USD in CENTS**. "Today" =
 > These columns are verified — query them directly; don't spend calls on `information_schema`,
 > `SELECT *`, or `SELECT DISTINCT` just to learn the schema.
 
-## Policy thresholds — READ `fin_policy` LIVE and apply what it says
+## Policy thresholds — READ `fin_policy` LIVE, then apply judgment
 
-Always query `fin_policy` (and `fin_fee_schedule`) at run time; the live table wins over the numbers below.
+Query `fin_policy` (and `fin_fee_schedule`) at run time and apply the **exact thresholds it states** —
+never assume or restate numbers from memory; the live table is the source of truth. It gives you an
+absolute **materiality floor**, a **price-tolerance %**, and the **COGS band**. Apply them like this:
 
-- **Materiality — the AND is load-bearing:** a variance is immaterial (skip) **only if under $5.00 AND
-  under 0.5% of the line — *both*.** If **either** bar is breached, it is material → flag. A small
-  absolute amount is not a free pass: e.g. a **$3.00** charge that is **13.9%** of a $21.60 line clears
-  the $5 floor but blows past 0.5% → **material → flag**.
-- **Unauthorized charges:** any freight/fee/line the invoice bills that **no PO line, price list, or
-  credit memo authorizes** is unauthorized — flag it once it breaches the 0.5% bar, regardless of the
-  $5 floor. (A lone freight charge no other invoice carries and no PO authorizes is the classic decoy.)
-- **Price tolerance:** a billed unit price within **0.5%** of contract is within tolerance — not an
-  exception even if the absolute diff exceeds $5. Flag a price variance only past **BOTH** bars.
-- **COGS band:** purchasing cost ≈ **30%** of net sales; **>34%** unexplained = investigate; **<28%** favorable.
+- **The materiality floor is a HARD floor.** A variance or added charge whose **absolute amount is below
+  the floor is immaterial — clear it** — *even if* it is a large percentage of a small line, and *even
+  if* it looks "unauthorized." Don't let a big-%-of-a-small-line reading override the absolute floor.
+- **The price-tolerance %** is a second bar for **price variances at/above the floor**: a billed unit
+  price within tolerance of contract is not an exception, even when the dollar gap clears the floor.
+- **Above the floor**, genuine price / quantity / duplicate / unauthorized-charge / tax errors MUST be flagged.
+
+Learn the calls from patterns (always compute against the *live* thresholds, never fixed numbers):
+- A lone freight/fee that no PO authorizes but whose amount is **below the materiality floor** → **clear**.
+  The obvious read is "unauthorized → flag"; the correct read is "below the floor → immaterial." This is
+  a classic **decoy** — a tiny sub-floor charge that baits a false alarm. Leave it.
+- A unit price off by **more than the tolerance %** *and* a dollar gap **above the floor** → **flag** (price variance).
+- Billed qty ≠ received qty by an amount **above the floor** → **flag** (quantity variance).
+
+**COGS band:** compute purchasing cost ÷ net sales for the store-period and compare to the band in
+`fin_policy` (target / investigate-above / favorable-below). An *implausibly* favorable ratio usually
+means incomplete purchasing data for the window — say `cannot_conclude` / flag the gap, don't declare
+"favorable."
 
 ## Recording a verdict
 
@@ -57,7 +67,7 @@ a tool result):
   {"duty": "three-way-match", "entity": "invoice 4821 line 3", "decision": "flag",
    "figures_cents": {"billed": 128900, "agreed": 121000, "line_total": 121000},
    "variance_cents": 7900, "variance_pct": 6.53,
-   "threshold": "materiality $5 AND 0.5%", "rule": "price variance exceeds both bars"}
+   "threshold": "per fin_policy: above materiality floor + price tolerance", "rule": "price variance exceeds both bars"}
 ]}
 ```
 `decision` ∈ `flag` | `clear` | `cannot_conclude`. Set `variance_*` null when N/A. Emit clears too.
