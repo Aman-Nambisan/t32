@@ -44,7 +44,9 @@ const RUNS_DIR = process.env.METRICS_RUNS_DIR || path.join(process.cwd(), "..", 
 export function loadLatestRun(): RunReport | null {
   let files: string[];
   try {
-    files = fs.readdirSync(RUNS_DIR).filter((f) => f.endsWith(".json"));
+    // Report files are timestamped (YYYYMMDD-…_*.json); exclude `_raw_*` checkpoints (raw arrays the
+    // bench writes so a crash never loses paid runs — they'd otherwise sort last and get picked).
+    files = fs.readdirSync(RUNS_DIR).filter((f) => f.endsWith(".json") && !f.startsWith("_"));
   } catch {
     return null; // no runs/ dir (e.g. fresh deploy) — the page renders an empty state
   }
