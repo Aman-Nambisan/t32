@@ -178,7 +178,7 @@ flowchart LR
 | **TRELLIS photo→3D** from a single Budget-day photo | worked, mesh quality capped | superseded by Hunyuan |
 | **Hunyuan3D v3 PBR** likeness bake-off (via fal.ai) | winner — meshopt+webp optimized GLB | `web/public/models/`, pipeline notes in `web/assets-src/` |
 | **MetaPerson rigged avatar** (real visemes/blendshapes) | parked — rigging cost vs deadline | post-hackathon list |
-| **Critic/verifier subagent** adapted from Anthropic's `financial-services` gl-reconciler | measured on the bench: made Penny *over-conservative*, net score down → **reverted** | ADR history (0006 added, then withdrawn — the eval loop doing its job) |
+| **Critic/verifier subagent** adapted from Anthropic's [`financial-services`](https://github.com/anthropics/financial-services) [gl-reconciler](https://github.com/anthropics/financial-services/tree/main/plugins/agent-plugins/gl-reconciler) | measured on the bench: made Penny *over-conservative*, net score down → **reverted** | ADR history (0006 added, then withdrawn — the eval loop doing its job) |
 | **Claude for Finance** feature research | informed the provenance/refs UX and connector framing | investigation-trail + refs design |
 | **Vercel AI SDK RSC / streamUI** for generative UI | experimental, docs steer away → rejected | — |
 | **vercel-labs json-render · Google A2UI · Thesys C1 · MCP Apps** survey | adopted the *flat element map* idea; frameworks themselves too heavy for the window | hand-rolled catalog + sanitizer in `web/src/components/genui/` |

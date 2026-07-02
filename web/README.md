@@ -99,9 +99,11 @@ trail, one dashboard, across all six.**
   logged *with the reason* — a split delivery, a processing fee, a contracted price. That's what lets a
   finance team trust the system instead of tuning it out.
 
-These controls patterns are **borrowed from Anthropic's own `financial-services` reference
-implementation** for Claude (e.g. its `gl-reconciler` reconciliation flow) — the same discipline
-Anthropic ships for finance, pointed at McContext's money and adapted to our bench.
+These controls patterns are **borrowed from Anthropic's own
+[`financial-services`](https://github.com/anthropics/financial-services) reference implementation** for
+Claude (e.g. its [`gl-reconciler`](https://github.com/anthropics/financial-services/tree/main/plugins/agent-plugins/gl-reconciler)
+reconciliation flow) — the same discipline Anthropic ships for finance, pointed at McContext's money
+and adapted to our bench.
 
 ## What it costs
 

@@ -4,6 +4,9 @@
 // SQL, added separately). Runs on the server only (uses node:fs); never shipped to the browser.
 import fs from "node:fs";
 import path from "node:path";
+// Committed snapshot, bundled into the build — the fallback when runs/ isn't on disk (e.g. Railway,
+// where web/ is the deploy root and repo-root runs/ is gitignored). Local dev reads live runs/ instead.
+import bundledRun from "@/data/latest-run.json";
 
 export type CaseResult = {
   id: string;
@@ -38,30 +41,29 @@ export type RunReport = {
   criticalFailures: string[];
 };
 
-// Repo-root runs/ lives one level up from web/. Override for deploy (where web/ is the root) via env.
+// Repo-root runs/ lives one level up from web/. Local dev reads it; deploy falls back to the bundle.
 const RUNS_DIR = process.env.METRICS_RUNS_DIR || path.join(process.cwd(), "..", "runs");
 
 export function loadLatestRun(): RunReport | null {
-  let files: string[];
+  // Local dev: read the freshest runs/*.json (excluding `_raw_*` checkpoints). Deploy: no runs/ on
+  // disk (gitignored, outside web/) → fall through to the committed bundled snapshot.
   try {
-    // Report files are timestamped (YYYYMMDD-…_*.json); exclude `_raw_*` checkpoints (raw arrays the
-    // bench writes so a crash never loses paid runs — they'd otherwise sort last and get picked).
-    files = fs.readdirSync(RUNS_DIR).filter((f) => f.endsWith(".json") && !f.startsWith("_"));
+    const files = fs
+      .readdirSync(RUNS_DIR)
+      .filter((f) => f.endsWith(".json") && !f.startsWith("_"));
+    if (files.length) {
+      files.sort(); // timestamped names → lexical sort = chronological; newest wins
+      const d = JSON.parse(fs.readFileSync(path.join(RUNS_DIR, files[files.length - 1]), "utf8"));
+      return reshape(d);
+    }
   } catch {
-    return null; // no runs/ dir (e.g. fresh deploy) — the page renders an empty state
+    /* no runs/ dir on disk (deploy) — use the bundled snapshot below */
   }
-  if (files.length === 0) return null;
-  // Filenames are timestamped (YYYYMMDD-HHMMSS_…) so lexical sort = chronological; newest wins.
-  files.sort();
-  const latest = path.join(RUNS_DIR, files[files.length - 1]);
+  return reshape(bundledRun as unknown as Record<string, unknown>);
+}
 
-  let d: Record<string, unknown>;
-  try {
-    d = JSON.parse(fs.readFileSync(latest, "utf8"));
-  } catch {
-    return null;
-  }
-
+function reshape(d: Record<string, unknown>): RunReport | null {
+  if (!d || typeof d !== "object") return null;
   const results = (d.results as Record<string, unknown>[]) || [];
   const cases: CaseResult[] = results.map((r) => {
     const verdict = (r.verdict as Record<string, unknown>) || {};
