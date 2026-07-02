@@ -113,6 +113,22 @@ def _run_passed(run: dict) -> bool:
     return True
 
 
+def _rep_errored(rep: dict) -> bool:
+    """True if a single repeat-run crashed (e.g. rate-limited) rather than producing a real verdict."""
+    if any(str(c).startswith("case errored") for c in rep.get("verdict", {}).get("critical_failures", [])):
+        return True
+    return rep.get("tool_calls", 0) == 0 and not rep.get("deterministic")
+
+
+def _incomplete(agg: dict, repeats: int) -> bool:
+    """A prior case-aggregate needs re-running if it has fewer reps than asked for, or any rep errored.
+    Used by --continue to re-run only the cases that failed, not the whole suite."""
+    reps = agg.get("reps") or []
+    if len(reps) < repeats:
+        return True
+    return any(_rep_errored(r) for r in reps)
+
+
 def _aggregate(cid: str, tags: list, reps: list[dict]) -> dict:
     """Collapse N repeat-runs of one case into a variance-aware result. Headline numbers are the
     WORST run and the pass-rate — for a detection agent, 'right every time' beats 'right on average'
@@ -280,7 +296,7 @@ def _print_report_plain(report: dict, baseline: dict | None) -> None:
 
 def run(agent_dir: str, suite: str, only_case: str | None = None,
         compare: str | None = None, allow_writes: bool = False, jobs: int = 1,
-        repeats: int = 1, agent_model: str | None = None) -> dict:
+        repeats: int = 1, agent_model: str | None = None, continue_from: str | None = None) -> dict:
     readonly = not allow_writes
     print(f"[bench] mode: {'READ-ONLY (write/submit tools blocked)' if readonly else '⚠ WRITES ENABLED — action tools can write to the graded store'}")
     suite_data = _load_suite(suite)
@@ -307,8 +323,24 @@ def run(agent_dir: str, suite: str, only_case: str | None = None,
         if not cases:
             sys.exit(f"No case with id '{only_case}' in suite '{suite}'.")
 
-    n = len(cases)
     R = max(1, repeats)
+
+    # --continue: load a prior run and re-run ONLY its incomplete (errored / short) cases, then merge.
+    # Lets us finish a partially-rate-limited variance run without re-spending on the cases that passed.
+    prior = None
+    if continue_from:
+        cp = pathlib.Path(continue_from)
+        if not cp.is_absolute():
+            cp = REPO_ROOT / continue_from
+        prior = json.loads(cp.read_text())
+        prior_by_id = {r["id"]: r for r in prior.get("results", [])}
+        incomplete = [c.get("id") for c in cases
+                      if _incomplete(prior_by_id.get(c.get("id"), {"reps": []}), R)]
+        print(f"[bench] continue from {cp.name}: {len(incomplete)} incomplete case(s) to re-run "
+              f"→ {incomplete}  (keeping {len(prior_by_id) - len(incomplete)} passed)")
+        cases = [c for c in cases if c.get("id") in incomplete]
+
+    n = len(cases)
 
     def _safe_run(item: tuple[int, dict, int]) -> tuple[int, dict]:
         """Run one case (one repeat); never raise — a failed run returns a scored-zero stub so the
@@ -352,6 +384,16 @@ def run(agent_dir: str, suite: str, only_case: str | None = None,
         by_case.setdefault(i, []).append(r)
     results = [_aggregate(case.get("id"), case.get("tags", []), by_case.get(i, []))
                for i, case in enumerate(cases, 1)]
+
+    # --continue: splice the freshly re-run cases back into the prior run's results (prior order),
+    # so the saved report is the complete variance baseline (passed cases + newly-fixed ones).
+    if prior:
+        merged = {r["id"]: r for r in prior.get("results", [])}
+        for r in results:
+            merged[r["id"]] = r
+        order = [r["id"] for r in prior.get("results", [])]
+        order += [rid for rid in (r["id"] for r in results) if rid not in order]
+        results = [merged[i] for i in order]
 
     mean_score = round(sum(r["score_mean"] for r in results) / len(results), 3) if results else 0.0
     worst_mean = round(sum(r["score_worst"] for r in results) / len(results), 3) if results else 0.0
@@ -429,10 +471,13 @@ def main():
     ap.add_argument("--agent-model", default=None,
                     help="override the agent model (e.g. claude-sonnet-4-6) for a cost/quality A/B "
                          "without editing agent.yaml")
+    ap.add_argument("--continue", dest="continue_from", default=None,
+                    help="path to a prior runs/*.json: re-run ONLY its incomplete (errored/short) cases "
+                         "and merge into a fresh complete report. Saves credits after a partial run.")
     args = ap.parse_args()
     run(args.agent.rstrip("/"), args.suite, args.case, args.compare,
         allow_writes=args.allow_writes, jobs=args.jobs, repeats=args.repeats,
-        agent_model=args.agent_model)
+        agent_model=args.agent_model, continue_from=args.continue_from)
 
 
 if __name__ == "__main__":

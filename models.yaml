@@ -18,13 +18,18 @@
 roles:
   agent:     claude-opus-4-8      # the agent under test / shipped. Per-agent override in agent.yaml wins.
   simulator: claude-sonnet-4-6    # role-plays the customer to drive the convo. Fast + cheap is plenty.
-  judge:     claude-opus-4-8      # scores transcripts + traces. Keep it sharp — the signal depends on it.
+  judge:     claude-sonnet-5      # scores transcripts + traces. Sonnet 5: cheaper than Opus, still sharp,
+                                  # and a different model from the Sonnet-4.6 agent (limits self-preference).
   subagent:  claude-haiku-4-5     # small delegated subtasks (classify/extract/route) in a multi-agent CMA.
 
 # Reference: current lineup + pricing per 1M tokens (input / output). Full guidance in docs/models.md.
-# Verified against the Anthropic model catalog (2026-06). There is NO "claude-sonnet-5" — latest Sonnet is 4.6.
+# Current lineup (2026-07). Claude 5 family (Fable 5, Sonnet 5) + Opus 4.8 + Haiku 4.5.
+# NOTE: claude-sonnet-5 pricing below is a PLACEHOLDER (copied from 4.6) — verify against the live
+# catalog before relying on its $ estimate. It's only used to price the AGENT model, so as long as the
+# agent isn't sonnet-5 this doesn't affect cost numbers.
 catalog:
   claude-fable-5:    { input: 10, output: 50, context: 1000000, use: "most capable; priciest — reserve for the hardest reasoning" }
-  claude-opus-4-8:   { input: 5,  output: 25, context: 1000000, use: "top Opus; default for quality-critical work (judge, hard agents)" }
-  claude-sonnet-4-6: { input: 3,  output: 15, context: 1000000, use: "best speed/intelligence balance; great default agent + simulator" }
+  claude-opus-4-8:   { input: 5,  output: 25, context: 1000000, use: "top Opus; quality-critical work (hard agents)" }
+  claude-sonnet-5:   { input: 3,  output: 15, context: 1000000, use: "latest Sonnet; strong + cheaper than Opus — good judge. PRICING UNVERIFIED" }
+  claude-sonnet-4-6: { input: 3,  output: 15, context: 1000000, use: "great default agent + simulator" }
   claude-haiku-4-5:  { input: 1,  output: 5,  context: 200000,  use: "fastest/cheapest; simple scoped subtasks, routers, sub-agents" }

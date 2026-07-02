@@ -84,7 +84,12 @@ class Judge:
         rendered_transcript = "\n".join(
             f"{'USER' if m['role'] == 'user' else 'AGENT'}: {m['text']}" for m in transcript
         ) or "(empty)"
-        rendered_trace = json.dumps(trace, indent=2, default=str) if trace else "(no tool calls)"
+        # The judge scores method/grounding from the tool CALLS (name + input, e.g. the SQL it ran),
+        # not the raw result payloads — those can be ~1MB of run_sql dumps per case and blow up the
+        # (Opus/Sonnet) judge's input cost. Deterministic grounding uses the full results separately
+        # (checks.py); here we drop `result` (and the internal `id`). → docs cost-efficiency.
+        judge_trace = [{k: v for k, v in c.items() if k in ("tool", "input")} for c in trace]
+        rendered_trace = json.dumps(judge_trace, indent=2, default=str) if trace else "(no tool calls)"
 
         prompt = _PROMPT.format(
             agent_context=agent_context,
