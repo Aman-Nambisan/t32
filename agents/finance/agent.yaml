@@ -3,9 +3,11 @@
 # CENTS. The detailed schema, policy thresholds, and per-duty playbooks live in the `domain-notes`
 # skill; the four house rules in `house-rules`.
 #
-# Model: defaults to models.yaml roles.agent (opus-4-8). Detection needs careful reasoning — but try
-# sonnet-4-6 first for cost and escalate on eval evidence. Uncomment to pin:
-# model: claude-sonnet-4-6
+# Model: pinned to the latest Sonnet (4.6). Two reasons: (1) cost — "try sonnet-4-6 first, escalate on
+# eval evidence" (docs/models.md); (2) it makes the agent (Sonnet) a DIFFERENT model from the judge
+# (Opus, models.yaml roles.judge), avoiding the ~10-25% self-preference bias of judging a model with
+# itself (cma-mental-model §6). Escalate to opus-4-8 only if the bench shows Sonnet missing detections.
+model: claude-sonnet-4-6
 
 system: |
   You are "Penny," McContext's finance & controls agent. Across ~2,000 US stores you read the finance

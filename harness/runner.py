@@ -30,21 +30,80 @@ from claude_agent_sdk import (
     ResultMessage,
     SystemMessage,
     TextBlock,
+    ToolResultBlock,
     ToolUseBlock,
+    UserMessage,
     create_sdk_mcp_server,
     tool,
 )
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# Company action/write tools. Blocked in readonly mode (the mock-bench default) so local runs can
-# NEVER write to the graded store — the real platform bench uses the full toolset. Extend if new
-# write tools appear (discover them with a read-only `make verify`).
+# Cap each captured tool result so a chatty run_sql dump can't bloat the trace / judge prompt.
+_MAX_RESULT_CHARS = 4000
+
+
+def _stringify_result(content) -> str:
+    """ToolResultBlock.content is either a string or a list of {type,text}-ish blocks. Flatten to text."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for b in content:
+            if isinstance(b, dict):
+                parts.append(str(b.get("text", b)))
+            else:
+                parts.append(str(getattr(b, "text", b)))
+        return "\n".join(parts)
+    return str(content)
+
+# Known company action/write tools (belt). But an ENUMERATED list is fragile: the MCP had a
+# submit_settlement we hadn't listed, and it slipped through a "read-only" run and wrote to the graded
+# store. So the real guard is _is_write_tool() below — pattern-based, catches unknown action tools by
+# shape — enforced via a can_use_tool callback. This list stays as a fast static deny + documentation.
 WRITE_TOOLS = [
     "submit_match_exception", "submit_duplicate_payment", "submit_loss_flag", "submit_cogs_variance",
-    "submit_cash_variance", "submit_variance", "submit_forecast", "submit_reorder", "submit_markdown",
-    "submit_answer", "submit_report", "create_ticket", "escalate", "issue_credit", "issue_refund",
+    "submit_cash_variance", "submit_settlement", "submit_variance", "submit_forecast", "submit_reorder",
+    "submit_markdown", "submit_answer", "submit_report", "create_ticket", "escalate", "issue_credit",
+    "issue_refund",
 ]
+
+# A tool is treated as state-changing (blocked in readonly review mode) if its leaf name starts with
+# any of these verbs. Detection agents only need READ tools locally; anything that records/mutates is
+# denied so a mock-bench run can never touch the graded store — regardless of whether we enumerated it.
+_WRITE_PREFIXES = (
+    "submit", "create", "issue", "post", "delete", "update", "send", "approve", "reject", "escalate",
+    "mark", "record", "write", "insert", "set", "pay", "refund", "void", "adjust", "flag", "resolve",
+    "assign", "close", "open_", "add_", "remove",
+)
+
+
+def _leaf_tool_name(name: str) -> str:
+    """'mcp__company__submit_settlement' -> 'submit_settlement'. Bare names pass through."""
+    return name.rsplit("__", 1)[-1] if name else name
+
+
+def _is_write_tool(name: str) -> bool:
+    leaf = _leaf_tool_name(name).lower()
+    if leaf in {t.lower() for t in WRITE_TOOLS}:
+        return True
+    return any(leaf == p or leaf.startswith(p if p.endswith("_") else p + "_") for p in _WRITE_PREFIXES)
+
+
+def _make_readonly_guard():
+    """A can_use_tool callback that DENIES any state-changing tool by shape and allows reads. This is
+    the load-bearing read-only guard for the mock bench — consulted per tool because readonly mode does
+    NOT auto-approve the whole MCP server (that blanket approval is how submit_settlement leaked)."""
+    from claude_agent_sdk import PermissionResultAllow, PermissionResultDeny
+
+    async def guard(tool_name: str, tool_input: dict, ctx):
+        if _is_write_tool(tool_name):
+            return PermissionResultDeny(
+                message=f"read-only review mode: '{_leaf_tool_name(tool_name)}' is a state-changing "
+                        f"tool and is blocked. Propose the verdict in your FINDINGS instead of submitting.")
+        return PermissionResultAllow()
+
+    return guard
 
 
 def _use_subscription() -> None:
@@ -184,13 +243,22 @@ def build_options(agent_dir: str, readonly: bool = False,
         allowed.append("mcp__custom")
 
     disallowed: list[str] = []
-    if readonly:  # block the action/write tools on every declared MCP server
+    can_use_tool = None
+    if readonly:
+        # Belt: statically deny the known write tools on every server. Suspenders: a pattern guard
+        # (can_use_tool) that denies ANY state-changing tool by shape. The guard only fires for tools
+        # not auto-approved, so in readonly we must NOT blanket-allow the whole server (that blanket
+        # `mcp__<server>` grant is exactly how the unlisted submit_settlement wrote to the graded
+        # store). We drop bare server-level grants and let the guard allow reads / deny writes.
         disallowed = [f"mcp__{name}__{t}" for name in servers for t in WRITE_TOOLS]
+        allowed = [a for a in allowed if "__" in a[len("mcp__"):]]  # keep per-tool grants, drop server-wide
+        can_use_tool = _make_readonly_guard()
 
     return ClaudeAgentOptions(
         model=model,
         system_prompt=system,
         mcp_servers=servers,
+        can_use_tool=can_use_tool,
         # scoped to exactly what the agent declares — deliberately NOT the ambient/built-in tools
         # a deployed managed agent wouldn't have either. strict_mcp_config isolates to the declared
         # MCPs so no ambient/personal MCP server leaks in.
@@ -213,6 +281,7 @@ class Conversation:
         self.options = build_options(agent_dir, readonly=readonly, model_override=model_override)
         self.model = self.options.model
         self.tool_calls: list[dict] = []      # every tool the agent calls — the "trace"
+        self._by_id: dict[str, dict] = {}      # tool_use id -> its trace entry, to attach results
         self.usage: list[dict] = []            # per-turn token/cost/latency, one entry per ResultMessage
         self.transcript: list[dict] = []       # [{role: "user"|"agent", text: str}]
         self._loop = asyncio.new_event_loop()
@@ -252,7 +321,18 @@ class Conversation:
                     if isinstance(block, TextBlock):
                         out.append(block.text)
                     elif isinstance(block, ToolUseBlock):
-                        self.tool_calls.append({"tool": block.name, "input": block.input})
+                        entry = {"tool": block.name, "input": block.input,
+                                 "id": block.id, "result": None}
+                        self.tool_calls.append(entry)
+                        self._by_id[block.id] = entry
+            elif isinstance(msg, UserMessage):
+                # Tool results come back on a UserMessage as ToolResultBlock(s); attach to the call.
+                content = getattr(msg, "content", None)
+                for block in content if isinstance(content, list) else []:
+                    if isinstance(block, ToolResultBlock):
+                        entry = self._by_id.get(block.tool_use_id)
+                        if entry is not None:
+                            entry["result"] = _stringify_result(block.content)[:_MAX_RESULT_CHARS]
             elif isinstance(msg, ResultMessage):
                 # end-of-turn accounting — tokens, the SDK's own cost figure, and latency
                 u = msg.usage or {}
