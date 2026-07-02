@@ -44,5 +44,9 @@ export function fmtUnit(v: number, unit?: string): string {
   if (!unit) return n;
   if (CURRENCY_PREFIXES.has(unit)) return `${unit}${n}`;
   if (unit === "%") return `${n}%`;
+  // Symbol+scale combos: "$M" → "$2.1M", "₹ Cr" → "₹119 Cr" (single-letter
+  // scales hug the number, longer ones get a space).
+  const combo = unit.match(/^([$₹€£])\s*(\S.*)$/);
+  if (combo) return `${combo[1]}${n}${combo[2].length === 1 ? combo[2] : ` ${combo[2]}`}`;
   return `${n} ${unit}`;
 }

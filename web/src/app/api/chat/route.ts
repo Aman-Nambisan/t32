@@ -145,10 +145,14 @@ function keywordEmotion(userText: string, mode: Mode): Emotion {
   return "neutral";
 }
 
-// Appended when the user flips the language toggle to plain English.
+// Language directives: the toggle flips words AND money convention.
 const ENGLISH_ONLY = `
 
-LANGUAGE OVERRIDE: Reply in clear English ONLY. Do not use any Hindi or Hinglish words (no beta, arre, theek hai, bas, nahin, bilkul, saab). Same personality, same rules — just fully English.`;
+LANGUAGE OVERRIDE: Reply in clear English ONLY. Do not use any Hindi or Hinglish words (no beta, arre, theek hai, bas, nahin, bilkul, saab). Same personality, same rules — just fully English. Money stays in US convention: dollars, millions/billions ($14.2M), blocks use unit "$M".`;
+
+const HINGLISH_MONEY = `
+
+MONEY CONVENTION: You are speaking to an Indian audience — express ALL money in Indian convention: rupees with lakh/crore, converting the USD context at ₹84 per dollar and rounding to clean figures ($14.2M ≈ ₹119 crore, $1.8M ≈ ₹15 crore, $412K ≈ ₹3.5 crore, $55M ≈ ₹460 crore, $3.1B ≈ ₹26,000 crore). In the spoken reply write amounts in words ("119 crore rupees"). In blocks use unit "₹ Cr" with values in crores (119, not 1190000000); for lakh-scale use unit "₹ L". In refs' detail give the rupee figure with the USD original in parentheses. Stay consistent within a conversation.`;
 
 export async function POST(request: Request) {
   let history: ChatMessage[];
@@ -182,7 +186,7 @@ export async function POST(request: Request) {
     const baseSystem = dark ? NARMATA_DARK_SYSTEM : NIRMALA_SYSTEM;
     const { text } = await generateText({
       model: anthropic(dark ? DARK_MODEL : MODEL),
-      system: lang === "english" ? baseSystem + ENGLISH_ONLY : baseSystem,
+      system: baseSystem + (lang === "english" ? ENGLISH_ONLY : HINGLISH_MONEY),
       messages: history,
       // Boardroom replies carry block/provenance JSON — room to breathe.
       maxOutputTokens: dark ? 1200 : 300,
