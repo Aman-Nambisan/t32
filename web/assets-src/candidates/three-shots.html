@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html,body{margin:0;background:#1a1a1a}canvas{display:block}</style>
+</head>
+<body>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.161.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.161.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'https://unpkg.com/meshoptimizer@0.20.0/meshopt_decoder.module.js';
+
+const q = new URLSearchParams(location.search);
+const W = 700, H = 700;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a1a);
+// approximate a neutral studio: hemi + key + fill (app forces metalness=0, roughness=.85)
+scene.add(new THREE.HemisphereLight(0xffffff, 0x555555, 1.1));
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(1, 2, 2); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.7); fill.position.set(-1.5, 1, -1); scene.add(fill);
+const camera = new THREE.PerspectiveCamera(30, W/H, 0.01, 100);
+
+const loader = new GLTFLoader();
+loader.setMeshoptDecoder(MeshoptDecoder);
+window.shots = null; window.loadError = null;
+loader.load(q.get('src'), (gltf) => {
+  const model = gltf.scene;
+  model.traverse(o => {
+    if (o.isMesh) {
+      const m = o.material;
+      if (m && 'metalness' in m) { m.metalness = 0; m.roughness = 0.85; }
+    }
+  });
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const c = box.getCenter(new THREE.Vector3());
+  scene.add(model);
+  const dist = size.y * 1.9;
+  const headY = c.y + size.y * 0.30;
+  const views = {
+    front:   { pos: [c.x, c.y + size.y*0.05, c.z + dist], tgt: [c.x, c.y, c.z], fov: 30 },
+    side20:  { pos: [c.x + Math.sin(0.35)*dist, c.y + size.y*0.05, c.z + Math.cos(0.35)*dist], tgt: [c.x, c.y, c.z], fov: 30 },
+    sideneg20:{ pos: [c.x - Math.sin(0.35)*dist, c.y + size.y*0.05, c.z + Math.cos(0.35)*dist], tgt: [c.x, c.y, c.z], fov: 30 },
+    back:    { pos: [c.x, c.y + size.y*0.05, c.z - dist], tgt: [c.x, c.y, c.z], fov: 30 },
+    face:    { pos: [c.x, c.y + size.y*0.40, c.z + dist*0.40], tgt: [c.x, c.y + size.y*0.385, c.z], fov: 14 },
+    faceside: { pos: [c.x + Math.sin(0.3)*dist*0.4, c.y + size.y*0.40, c.z + Math.cos(0.3)*dist*0.4], tgt: [c.x, c.y + size.y*0.385, c.z], fov: 14 },
+  };
+  const out = {};
+  for (const [name, v] of Object.entries(views)) {
+    camera.position.set(...v.pos);
+    camera.fov = v.fov; camera.updateProjectionMatrix();
+    camera.lookAt(...v.tgt);
+    renderer.render(scene, camera);
+    out[name] = renderer.domElement.toDataURL('image/jpeg', 0.9);
+  }
+  window.shots = out;
+}, undefined, (e) => { window.loadError = String(e); });
+</script>
+</body>
+</html>
