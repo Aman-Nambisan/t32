@@ -4,10 +4,11 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, Sparkles } from "@react-three/drei";
-import type { Mood } from "@/lib/types";
+import type { Emotion, Mood } from "@/lib/types";
 
 type StageProps = {
   mood: Mood;
+  emotion: Emotion;
   energyRef: React.RefObject<number>;
 };
 
@@ -15,61 +16,78 @@ function dampTo(current: number, target: number, lambda: number, dt: number) {
   return current + (target - current) * (1 - Math.exp(-lambda * dt));
 }
 
-// Placeholder primitive-built Tai. The generated GLB will replace the body of
-// this component; the animation rig (mood + energy driving the refs) stays.
-function NirmalaAvatar({ mood, energyRef }: StageProps) {
+// Placeholder primitive-built Tai. The generated likeness GLB replaces the
+// body of this component; the animation rig (mood/emotion/energy driving the
+// group refs) stays identical.
+function NirmalaAvatar({ mood, emotion, energyRef }: StageProps) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const head = useRef<THREE.Group>(null);
   const mouth = useRef<THREE.Mesh>(null);
   const eyes = useRef<THREE.Group>(null);
   const coin = useRef<THREE.Mesh>(null);
+  const finger = useRef<THREE.Group>(null);
+  const baton = useRef<THREE.Group>(null);
+  const angryLight = useRef<THREE.PointLight>(null);
   const talk = useRef(0);
+  const fx = useRef({ angry: 0, baton: 0, tax: 0 });
 
   useFrame((state, delta) => {
     if (!root.current || !head.current || !body.current) return;
     const t = state.clock.elapsedTime;
 
-    // Word pulses decay into a smoothed "talk" amplitude.
+    // Word/amplitude pulses decay into a smoothed "talk" level.
     energyRef.current = (energyRef.current ?? 0) * Math.exp(-3.2 * delta);
     talk.current = dampTo(talk.current, energyRef.current, 10, delta);
 
-    // Idle base: breathing + slow sway.
+    // Emotion envelopes ramp in/out smoothly.
+    fx.current.angry = dampTo(fx.current.angry, emotion === "angry" ? 1 : 0, 5, delta);
+    fx.current.baton = dampTo(fx.current.baton, emotion === "baton" ? 1 : 0, 5, delta);
+    fx.current.tax = dampTo(fx.current.tax, emotion === "tax" ? 1 : 0, 5, delta);
+    const { angry, baton: lathi, tax } = fx.current;
+
+    // Idle base: breathing + slow sway (+ gleeful bounce when taxing).
     body.current.scale.y = 1 + 0.012 * Math.sin(t * 1.7);
     root.current.rotation.z = 0.018 * Math.sin(t * 0.5);
-    root.current.position.y = 0.01 * Math.sin(t * 0.9);
+    root.current.position.y = 0.01 * Math.sin(t * 0.9) + 0.02 * Math.sin(t * 8) * tax;
+    // Lean in when scolding or wielding the lathi; shake when swinging.
+    root.current.rotation.x = dampTo(root.current.rotation.x, 0.07 * angry + 0.12 * lathi, 6, delta);
+    root.current.position.x = Math.sin(t * 47) * 0.012 * lathi;
 
     // Mood targets for the head.
-    let targetTilt = 0.06 * Math.sin(t * 0.4); // idle: slow considering tilt
-    let targetYaw = 0.16 * Math.sin(t * 0.3); // idle: looking around the room
+    let targetTilt = 0.06 * Math.sin(t * 0.4);
+    let targetYaw = 0.16 * Math.sin(t * 0.3);
     let targetPitch = 0;
     if (mood === "thinking") {
       targetTilt = 0.16;
       targetYaw = 0.25;
-      targetPitch = -0.12; // gazing up, consulting the fiscal heavens
+      targetPitch = -0.12; // consulting the fiscal heavens
     } else if (mood === "speaking") {
       targetTilt = 0.02 * Math.sin(t * 2);
       targetYaw = 0.05 * Math.sin(t * 1.1);
-      targetPitch = 0.02 + 0.05 * Math.sin(t * 13) * talk.current; // emphatic bob
+      targetPitch = 0.02 + 0.05 * Math.sin(t * 13) * talk.current;
     }
-    head.current.rotation.z = dampTo(head.current.rotation.z, targetTilt, 6, delta);
-    head.current.rotation.y = dampTo(head.current.rotation.y, targetYaw, 6, delta);
+    head.current.rotation.z =
+      dampTo(head.current.rotation.z, targetTilt, 6, delta) + Math.sin(t * 7) * 0.09 * tax;
+    head.current.rotation.y =
+      dampTo(head.current.rotation.y, targetYaw, 6, delta) + Math.sin(t * 22) * 0.1 * angry;
     head.current.rotation.x = dampTo(head.current.rotation.x, targetPitch, 8, delta);
 
-    // Mouth flap.
+    // Mouth: flap while talking, grin wide while taxing.
     if (mouth.current) {
       const open = mood === "speaking" ? 0.3 + 2.2 * talk.current : 0.3;
       mouth.current.scale.y = dampTo(mouth.current.scale.y, Math.min(open, 2.2), 18, delta);
+      mouth.current.scale.x = dampTo(mouth.current.scale.x, 1 + 1.1 * tax, 8, delta);
     }
 
-    // Periodic blink.
+    // Periodic blink (glare while angry).
     if (eyes.current) {
       const cycle = t % 3.7;
       const blink = cycle < 0.12 ? 0.12 : 1;
-      eyes.current.scale.y = dampTo(eyes.current.scale.y, blink, 30, delta);
+      eyes.current.scale.y = dampTo(eyes.current.scale.y, blink - 0.25 * angry, 30, delta);
     }
 
-    // Thinking coin: spins into existence while she deliberates.
+    // Thinking coin.
     if (coin.current) {
       const show = mood === "thinking" ? 1 : 0;
       const s = dampTo(coin.current.scale.x, show, 8, delta);
@@ -77,10 +95,25 @@ function NirmalaAvatar({ mood, energyRef }: StageProps) {
       coin.current.rotation.y += delta * 4;
       coin.current.position.y = 2.05 + 0.05 * Math.sin(t * 3);
     }
+
+    // Wagging finger (angry) and lathi swing (baton).
+    if (finger.current) {
+      finger.current.scale.setScalar(Math.max(angry, 0.0001));
+      finger.current.rotation.z = -0.2 + Math.sin(t * 16) * 0.45 * angry;
+    }
+    if (baton.current) {
+      baton.current.scale.setScalar(Math.max(lathi, 0.0001));
+      baton.current.rotation.z = -1.1 + ((Math.sin(t * 9) + 1) / 2) * 0.9 * lathi;
+    }
+    if (angryLight.current) {
+      angryLight.current.intensity = 26 * angry;
+    }
   });
 
   return (
     <group ref={root}>
+      <pointLight ref={angryLight} position={[0, 1.6, 1.6]} intensity={0} color="#E5484D" />
+
       <group ref={body}>
         {/* Sari silhouette + gold border */}
         <mesh position={[0, 0.62, 0]} castShadow>
@@ -124,6 +157,30 @@ function NirmalaAvatar({ mood, energyRef }: StageProps) {
           <mesh position={[0.21, -0.05, 0]}>
             <sphereGeometry args={[0.052, 16, 12]} />
             <meshStandardMaterial color="#C68863" roughness={0.7} />
+          </mesh>
+        </group>
+
+        {/* Wagging finger — appears when someone is being naughty */}
+        <group ref={finger} position={[0.42, 1.18, 0.3]} scale={0.0001}>
+          <mesh rotation={[0, 0, -0.2]}>
+            <cylinderGeometry args={[0.028, 0.034, 0.3, 12]} />
+            <meshStandardMaterial color="#C68863" roughness={0.7} />
+          </mesh>
+          <mesh position={[0.03, 0.17, 0]}>
+            <sphereGeometry args={[0.032, 12, 8]} />
+            <meshStandardMaterial color="#C68863" roughness={0.7} />
+          </mesh>
+        </group>
+
+        {/* The lathi — GST-compliant */}
+        <group ref={baton} position={[0.5, 1.0, 0.15]} scale={0.0001}>
+          <mesh position={[0, 0.32, 0]}>
+            <cylinderGeometry args={[0.035, 0.04, 0.72, 12]} />
+            <meshStandardMaterial color="#7A4A21" roughness={0.6} />
+          </mesh>
+          <mesh position={[0, -0.02, 0]}>
+            <cylinderGeometry args={[0.045, 0.045, 0.1, 12]} />
+            <meshStandardMaterial color="#3E2712" roughness={0.7} />
           </mesh>
         </group>
       </group>
@@ -203,7 +260,7 @@ function NirmalaAvatar({ mood, energyRef }: StageProps) {
   );
 }
 
-export default function NirmalaStage({ mood, energyRef }: StageProps) {
+export default function NirmalaStage({ mood, emotion, energyRef }: StageProps) {
   return (
     <Canvas
       camera={{ position: [0, 1.5, 3.4], fov: 34 }}
@@ -216,9 +273,12 @@ export default function NirmalaStage({ mood, energyRef }: StageProps) {
       <pointLight position={[-2.5, 2, -1.5]} intensity={12} color="#2E8C63" />
       <pointLight position={[0, 3, -2.5]} intensity={8} color="#D98CB0" />
 
-      <NirmalaAvatar mood={mood} energyRef={energyRef} />
+      <NirmalaAvatar mood={mood} emotion={emotion} energyRef={energyRef} />
 
       <Sparkles count={45} scale={[3.2, 2.6, 3.2]} position={[0, 1.4, 0]} size={2.2} speed={0.3} opacity={0.35} color="#E8C776" />
+      {emotion === "tax" && (
+        <Sparkles count={130} scale={[2.6, 3, 2.6]} position={[0, 1.7, 0]} size={5} speed={2.2} opacity={0.85} color="#F2C14E" />
+      )}
       <ContactShadows position={[0, -0.01, 0]} opacity={0.55} scale={7} blur={2.6} far={2.5} />
 
       <OrbitControls

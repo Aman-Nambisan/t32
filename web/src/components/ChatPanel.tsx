@@ -1,18 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GREETING, SUGGESTIONS, randomFallback } from "@/lib/lines";
-import type { ChatMessage, Mood } from "@/lib/types";
+import { EMOTION_FX, GREETING, SUGGESTIONS, randomFallback } from "@/lib/lines";
+import type { ChatMessage, Emotion, Mood } from "@/lib/types";
 
 type ChatPanelProps = {
   mood: Mood;
   setMood: (mood: Mood) => void;
+  onEmotion: (emotion: Emotion) => void;
   speak: (text: string) => Promise<void>;
+  unlock: () => void;
   muted: boolean;
   setMuted: (muted: boolean) => void;
 };
 
-export default function ChatPanel({ mood, setMood, speak, muted, setMuted }: ChatPanelProps) {
+export default function ChatPanel({
+  mood,
+  setMood,
+  onEmotion,
+  speak,
+  unlock,
+  muted,
+  setMuted,
+}: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "assistant", content: GREETING },
   ]);
@@ -27,6 +37,7 @@ export default function ChatPanel({ mood, setMood, speak, muted, setMuted }: Cha
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || pending) return;
+    unlock(); // create/resume the audio graph inside the user gesture
     setInput("");
     setPending(true);
     setMood("thinking");
@@ -34,6 +45,7 @@ export default function ChatPanel({ mood, setMood, speak, muted, setMuted }: Cha
     setMessages(history);
 
     let reply: string;
+    let emotion: Emotion = "neutral";
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -42,14 +54,22 @@ export default function ChatPanel({ mood, setMood, speak, muted, setMuted }: Cha
       });
       const data = await res.json();
       reply = typeof data.reply === "string" && data.reply ? data.reply : randomFallback();
+      if (data.emotion && data.emotion !== "neutral" && data.emotion in EMOTION_FX) {
+        emotion = data.emotion as Emotion;
+      }
     } catch {
       reply = randomFallback();
     }
 
-    setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    const fx = emotion !== "neutral" ? EMOTION_FX[emotion as Exclude<Emotion, "neutral">] : null;
+    const spoken = fx ? `${fx.catchphrase} ${reply}` : reply;
+
+    setMessages((prev) => [...prev, { role: "assistant", content: spoken }]);
     setPending(false);
     setMood("speaking");
-    await speak(reply);
+    onEmotion(emotion);
+    await speak(spoken);
+    onEmotion("neutral");
     setMood("idle");
   }
 

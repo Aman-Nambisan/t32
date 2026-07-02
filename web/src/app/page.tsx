@@ -4,7 +4,8 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import ChatPanel from "@/components/ChatPanel";
 import { useSpeech } from "@/hooks/useSpeech";
-import type { Mood } from "@/lib/types";
+import { EMOTION_FX } from "@/lib/lines";
+import type { Emotion, Mood } from "@/lib/types";
 
 const NirmalaStage = dynamic(() => import("@/components/NirmalaStage"), {
   ssr: false,
@@ -15,9 +16,24 @@ const NirmalaStage = dynamic(() => import("@/components/NirmalaStage"), {
   ),
 });
 
+const EMOTION_STYLES: Record<Exclude<Emotion, "neutral">, string> = {
+  angry: "border-red-500/90 text-red-300",
+  baton: "border-amber-400/90 text-amber-200",
+  tax: "border-emerald-400/90 text-emerald-200",
+};
+
 export default function Home() {
   const [mood, setMood] = useState<Mood>("idle");
-  const { speak, energyRef, muted, setMuted } = useSpeech();
+  const [emotion, setEmotion] = useState<Emotion>("neutral");
+  const [emotionNonce, setEmotionNonce] = useState(0);
+  const { speak, energyRef, muted, setMuted, unlock } = useSpeech();
+
+  function handleEmotion(next: Emotion) {
+    setEmotion(next);
+    if (next !== "neutral") setEmotionNonce((n) => n + 1);
+  }
+
+  const fx = emotion !== "neutral" ? EMOTION_FX[emotion] : null;
 
   return (
     <main className="flex min-h-screen flex-col bg-gradient-to-b from-[#0A1210] via-[#0C1418] to-[#131018] text-white">
@@ -44,7 +60,18 @@ export default function Home() {
 
       <div className="flex flex-1 flex-col gap-4 p-4 md:flex-row md:gap-5 md:px-10 md:pb-6">
         <section className="relative min-h-[420px] flex-1 overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(ellipse_at_50%_35%,#1C2B26_0%,#0C1114_70%)]">
-          <NirmalaStage mood={mood} energyRef={energyRef} />
+          <NirmalaStage mood={mood} emotion={emotion} energyRef={energyRef} />
+
+          {fx && (
+            <div
+              key={emotionNonce}
+              className={`stamp-in pointer-events-none absolute right-5 top-5 rotate-6 rounded-xl border-4 bg-black/65 px-5 py-3 backdrop-blur ${EMOTION_STYLES[emotion as Exclude<Emotion, "neutral">]}`}
+            >
+              <p className="text-2xl">{fx.emoji}</p>
+              <p className="font-display text-xl font-bold tracking-wide">{fx.annotation}</p>
+            </div>
+          )}
+
           <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-amber-200/20 bg-black/50 px-4 py-1.5 text-xs tracking-wide text-amber-100/80 backdrop-blur">
             {mood === "thinking"
               ? "Tai is auditing your request…"
@@ -55,7 +82,15 @@ export default function Home() {
         </section>
 
         <aside className="h-[520px] w-full md:h-auto md:w-[400px] lg:w-[430px]">
-          <ChatPanel mood={mood} setMood={setMood} speak={speak} muted={muted} setMuted={setMuted} />
+          <ChatPanel
+            mood={mood}
+            setMood={setMood}
+            onEmotion={handleEmotion}
+            speak={speak}
+            unlock={unlock}
+            muted={muted}
+            setMuted={setMuted}
+          />
         </aside>
       </div>
 

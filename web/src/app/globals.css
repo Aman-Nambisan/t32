@@ -25,3 +25,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes stamp-in {
+  0% {
+    opacity: 0;
+    transform: rotate(6deg) scale(2.4);
+  }
+  60% {
+    opacity: 1;
+    transform: rotate(6deg) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(6deg) scale(1);
+  }
+}
+
+.stamp-in {
+  animation: stamp-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
