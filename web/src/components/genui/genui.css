@@ -1,0 +1,39 @@
+/* Generative-UI canvas: mount/fill motion only — layout and type are Tailwind. */
+
+@keyframes gui-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.gui-in {
+  animation: gui-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Progress fills grow from 0 to their inline width (from-only keeps rounding). */
+@keyframes gui-grow {
+  from {
+    width: 0;
+  }
+}
+.gui-grow {
+  animation: gui-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Column counts arrive as inline style the JIT can't see; collapse on phones. */
+@media (max-width: 480px) {
+  .gui-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gui-in,
+  .gui-grow {
+    animation: none !important;
+  }
+}

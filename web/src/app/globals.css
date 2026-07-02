@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
+/* Permanently dark product — never follow the OS appearance. A light-mode
+   browser otherwise paints body white, which peeks through as a white strip
+   at the scrollbar gutter and flashes on overscroll. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #070707;
+  --foreground: #ededed;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -13,11 +17,10 @@
   --font-display: var(--font-fraunces);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--background);
+  /* Viewport-locked app — sideways page scroll is never a valid state. */
+  overflow-x: clip;
 }
 
 body {

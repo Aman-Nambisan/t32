@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Blocks from "@/components/blocks/Blocks";
+import GenUI from "@/components/genui/GenUI";
 import { RefChips, ResearchingBubble, TraceTrail } from "@/components/Research";
 import {
   EMOTION_CATCHPHRASE_EN,
@@ -10,7 +11,7 @@ import {
   SUGGESTIONS,
   randomFallback,
 } from "@/lib/lines";
-import type { Block, ChatMessage, Emotion, Lang, Mode, Mood, Ref } from "@/lib/types";
+import type { Block, ChatMessage, Emotion, Lang, Mode, Mood, Ref, UiSpec } from "@/lib/types";
 
 type ChatPanelProps = {
   mode: Mode;
@@ -103,6 +104,7 @@ export default function ChatPanel({
     let reply: string;
     let emotion: Emotion = "neutral";
     let blocks: Block[] | undefined;
+    let ui: UiSpec | undefined;
     let trace: string[] | undefined;
     let refs: Ref[] | undefined;
     try {
@@ -117,6 +119,7 @@ export default function ChatPanel({
         emotion = data.emotion as Emotion;
       }
       if (Array.isArray(data.blocks) && data.blocks.length) blocks = data.blocks as Block[];
+      if (data.ui && typeof data.ui === "object" && data.ui.root) ui = data.ui as UiSpec;
       if (Array.isArray(data.trace) && data.trace.length) trace = data.trace as string[];
       if (Array.isArray(data.refs) && data.refs.length) refs = data.refs as Ref[];
     } catch {
@@ -132,7 +135,7 @@ export default function ChatPanel({
         : null;
     const spoken = catchphrase ? `${catchphrase} ${reply}` : reply;
 
-    append(mode, { role: "assistant", content: spoken, blocks, trace, refs });
+    append(mode, { role: "assistant", content: spoken, blocks, ui, trace, refs });
     setPending(false);
     setMood("speaking");
     onEmotion(emotion);
@@ -198,33 +201,37 @@ export default function ChatPanel({
               {message.content}
               {message.refs && <RefChips refs={message.refs} dark={dark} />}
             </div>
-            {message.blocks && (
+            {message.ui && (
+              <div className="w-full max-w-[97%]">
+                <GenUI spec={message.ui} dark={dark} />
+              </div>
+            )}
+            {!message.ui && message.blocks && (
               <div className="w-full max-w-[97%]">
                 <Blocks blocks={message.blocks} dark={dark} />
               </div>
             )}
           </div>
         ))}
+        {showSuggestions && (
+          <div className="msg-in flex flex-wrap gap-2 pt-1">
+            {SUGGESTIONS[mode].map((suggestion) => (
+              <button
+                key={suggestion}
+                onClick={() => send(suggestion)}
+                className={`rounded-full border border-white/15 px-3 py-1.5 text-left text-xs text-white/70 transition ${t.chip}`}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
         {pending && (
           <div className="msg-in flex justify-start">
             <ResearchingBubble mode={mode} />
           </div>
         )}
       </div>
-
-      {showSuggestions && (
-        <div className="flex flex-wrap gap-2 px-4 pb-2">
-          {SUGGESTIONS[mode].map((suggestion) => (
-            <button
-              key={suggestion}
-              onClick={() => send(suggestion)}
-              className={`rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 transition ${t.chip}`}
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      )}
 
       <form
         onSubmit={(e) => {

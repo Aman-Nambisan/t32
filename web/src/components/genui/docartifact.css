@@ -1,0 +1,148 @@
+/* Document artifacts: paper typography + scoped print-to-PDF isolation.
+   Sizes inside .doc-paper are em-based so the single print font-size override
+   (13px → 11pt) rescales the whole sheet proportionally. */
+
+.doc-paper {
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.doc-smallcaps {
+  font-variant-caps: small-caps;
+}
+
+/* Legal clause numbering runs 1..N across the whole document (headings don't
+   reset it) with a hanging indent — the way a real notice numbers paragraphs. */
+.doc-sections {
+  counter-reset: doc-clause;
+}
+
+.doc-clause {
+  counter-increment: doc-clause;
+  position: relative;
+  padding-left: 2em;
+  text-align: justify;
+}
+
+.doc-clause::before {
+  content: counter(doc-clause) ".";
+  position: absolute;
+  left: 0.25em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Classification stamp: red ink pressed into the paper (multiply), double
+   ring via an inset outline, slight skew — embassy stamp, not sticker. */
+.doc-stamp {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.1rem;
+  z-index: 1;
+  padding: 0.32em 0.9em;
+  border: 2px solid rgba(185, 28, 28, 0.8);
+  border-radius: 3px;
+  outline: 1px solid rgba(185, 28, 28, 0.45);
+  outline-offset: -5px;
+  color: rgba(185, 28, 28, 0.82);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  user-select: none;
+  animation: doc-stamp-in 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) 0.35s both;
+}
+
+@keyframes doc-stamp-in {
+  0% {
+    opacity: 0;
+    transform: rotate(-6deg) scale(1.9);
+  }
+  55% {
+    opacity: 1;
+    transform: rotate(-6deg) scale(0.95);
+  }
+  100% {
+    opacity: 0.92;
+    transform: rotate(-6deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-stamp {
+    animation: none;
+    opacity: 0.92;
+    transform: rotate(-6deg);
+  }
+}
+
+/* ——— Print-to-PDF ———
+   DocArtifact stamps body[data-print-doc="<uid>"] and marks the one paper
+   being printed with [data-doc-printing]; JS pairs them by uid (CSS cannot
+   compare attribute values), so several doc artifacts in a chat never
+   collide. Everything else goes invisible, ancestors keep their boxes but
+   lose clipping/transforms so the paper can absolutely position to the page
+   origin, and the sheet reflows to full page width in black ink. */
+@media print {
+  @page {
+    margin: 18mm;
+  }
+
+  body[data-print-doc] {
+    background: #fff !important;
+  }
+
+  body[data-print-doc] * {
+    visibility: hidden;
+  }
+
+  body[data-print-doc] :is([data-doc-printing], [data-doc-printing] *) {
+    visibility: visible;
+  }
+
+  body[data-print-doc] *:not([data-doc-printing], [data-doc-printing] *) {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    transform: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    contain: none !important;
+  }
+
+  body[data-print-doc] [data-doc-printing] {
+    position: absolute !important;
+    inset: 0 auto auto 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important; /* also drops the Tailwind ring */
+    font-size: 11pt;
+    line-height: 1.6;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body[data-print-doc] .doc-noprint {
+    display: none !important;
+  }
+
+  body[data-print-doc] [data-doc-printing] .doc-scroll {
+    overflow: visible !important;
+  }
+
+  /* Keep prose sections and the signature block on one page; let tables break. */
+  body[data-print-doc] [data-doc-printing] .doc-sec:not(:has(.doc-scroll)),
+  body[data-print-doc] [data-doc-printing] .doc-sig {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body[data-print-doc] [data-doc-printing] .doc-stamp {
+    animation: none;
+    opacity: 0.92;
+  }
+}
