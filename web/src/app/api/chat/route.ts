@@ -1,14 +1,17 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { generateText } from "ai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { NIRMALA_SYSTEM } from "@/lib/persona";
 import { randomFallback } from "@/lib/lines";
 import { EMOTIONS, type ChatMessage, type Emotion } from "@/lib/types";
+
+// Vercel AI SDK provider: swap this for the deployed CMA agent later by
+// pointing at a custom provider — the route contract stays the same.
+const anthropic = createAnthropic({});
 
 // Cheapest model that clears the bar, per team cost rules (../models.yaml).
 const MODEL = process.env.NIRMALA_MODEL ?? "claude-sonnet-4-6";
 const MAX_HISTORY = 12;
 const MAX_MSG_CHARS = 600;
-
-const client = new Anthropic();
 
 function parseModelJson(raw: string): { reply: string; emotion: Emotion } {
   try {
@@ -57,18 +60,13 @@ export async function POST(request: Request) {
   const lastUserText = history[history.length - 1].content;
 
   try {
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 300,
+    const { text } = await generateText({
+      model: anthropic(MODEL),
       system: NIRMALA_SYSTEM,
       messages: history,
+      maxOutputTokens: 300,
     });
-    const raw = response.content
-      .filter((block) => block.type === "text")
-      .map((block) => block.text)
-      .join(" ")
-      .trim();
-    const { reply, emotion } = parseModelJson(raw);
+    const { reply, emotion } = parseModelJson(text.trim());
     const finalEmotion = emotion === "neutral" ? keywordEmotion(lastUserText) : emotion;
     return Response.json({
       reply: reply || randomFallback(),

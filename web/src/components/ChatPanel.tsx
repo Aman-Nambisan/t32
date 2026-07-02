@@ -97,7 +97,7 @@ export default function ChatPanel({
         </button>
       </div>
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.map((message, i) => (
           <div key={i} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}>
             <div

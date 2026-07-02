@@ -36,8 +36,8 @@ export default function Home() {
   const fx = emotion !== "neutral" ? EMOTION_FX[emotion] : null;
 
   return (
-    <main className="flex min-h-screen flex-col bg-gradient-to-b from-[#0A1210] via-[#0C1418] to-[#131018] text-white">
-      <header className="flex items-center justify-between px-6 pb-2 pt-6 md:px-10">
+    <main className="flex min-h-screen flex-col bg-gradient-to-b from-[#0A1210] via-[#0C1418] to-[#131018] text-white md:h-screen md:min-h-0 md:overflow-hidden">
+      <header className="flex shrink-0 items-center justify-between px-6 pb-2 pt-6 md:px-10">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-emerald-300/70">
             Penny · Finance &amp; Controls · Team t32
@@ -58,8 +58,8 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 md:flex-row md:gap-5 md:px-10 md:pb-6">
-        <section className="relative min-h-[420px] flex-1 overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(ellipse_at_50%_35%,#1C2B26_0%,#0C1114_70%)]">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:flex-row md:gap-5 md:px-10 md:pb-6">
+        <section className="relative min-h-[420px] flex-1 overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(ellipse_at_50%_35%,#1C2B26_0%,#0C1114_70%)] md:min-h-0">
           <NirmalaStage mood={mood} emotion={emotion} energyRef={energyRef} />
 
           {fx && (
@@ -81,7 +81,7 @@ export default function Home() {
           </div>
         </section>
 
-        <aside className="h-[520px] w-full md:h-auto md:w-[400px] lg:w-[430px]">
+        <aside className="h-[520px] w-full min-h-0 md:h-full md:w-[400px] lg:w-[430px]">
           <ChatPanel
             mood={mood}
             setMood={setMood}
@@ -94,7 +94,7 @@ export default function Home() {
         </aside>
       </div>
 
-      <footer className="px-6 pb-4 text-center text-[11px] text-white/30 md:px-10">
+      <footer className="shrink-0 px-6 pb-4 text-center text-[11px] text-white/30 md:px-10">
         Parody for the Atlan AI Hackathon 2026 · Not affiliated with any real official ·
         Fronted by Penny, the finance &amp; controls agent
       </footer>
