@@ -80,7 +80,7 @@ def _current_version(agent_id: str) -> int | None:
 
 
 def deploy(agent_dir: str, name: str | None, dry: bool) -> None:
-    _load_env()  # pull ANTHROPIC_API_KEY (and any MCP vars) from repo-root .env into env for `ant`
+    _load_env(agent_sdk=False)  # deploy needs ANTHROPIC_API_KEY in env for `ant` (unlike the harness)
     agent_dir = agent_dir.rstrip("/")
     base = pathlib.Path(agent_dir)
     if not (base / "agent.yaml").is_file():

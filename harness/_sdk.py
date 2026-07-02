@@ -15,6 +15,8 @@ from claude_agent_sdk import (
     query,
 )
 
+from .runner import _use_subscription
+
 
 async def _acomplete(system: str, prompt: str, model: str) -> str:
     opts = ClaudeAgentOptions(
@@ -37,4 +39,5 @@ async def _acomplete(system: str, prompt: str, model: str) -> str:
 def complete(system: str, prompt: str, model: str = "claude-opus-4-8") -> str:
     """Blocking single-turn completion. Safe to call between `Conversation.send()` calls — each
     invocation runs its own event loop and returns before the next SDK call starts."""
+    _use_subscription()  # simulator/judge run on the subscription too, never the paid API key
     return asyncio.run(_acomplete(system, prompt, model))

@@ -85,7 +85,7 @@ def main() -> int:
               "    Local iteration is free: use `make bench SUITE=finance`.")
         return 2
 
-    _load_env()
+    _load_env(agent_sdk=False)  # CMA smoke needs the participant key for `ant` (not a subscription path)
     if not os.environ.get("ANTHROPIC_API_KEY"):
         sys.exit("[cma-smoke] ANTHROPIC_API_KEY not set in .env — need your participant key to reach CMA.")
 

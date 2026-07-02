@@ -27,6 +27,7 @@ from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
+    ResultMessage,
     SystemMessage,
     TextBlock,
     ToolUseBlock,
@@ -46,10 +47,22 @@ WRITE_TOOLS = [
 ]
 
 
-def _load_env() -> None:
+def _use_subscription() -> None:
+    """Force local Agent-SDK calls onto your Claude subscription (free-ish), not the participant API
+    key. `ANTHROPIC_API_KEY` — which deploy needs for the `ant` CLI — otherwise takes precedence over
+    the claude.ai login and routes local runs through paid API billing. Idempotent; safe to call
+    before any local SDK call (runner, simulator, judge)."""
+    os.environ.pop("ANTHROPIC_API_KEY", None)
+
+
+def _load_env(agent_sdk: bool = True) -> None:
     """Load repo-root `.env` (yours) or `.env.example` (fallback) into the environment without
     overriding anything already set. Keeps the company-MCP token and workspace key out of git;
-    reference them from agent.yaml as ${MCCTX_MCP_URL} etc."""
+    reference them from agent.yaml as ${MCCTX_MCP_URL} etc.
+
+    `agent_sdk=True` (the local-harness default) SKIPS `ANTHROPIC_API_KEY` and drops any inherited
+    one, so the runner/simulator/judge use your subscription — local dev stays free and the $50 CMA
+    budget is spent only on deploy. Deploy paths call `_load_env(agent_sdk=False)` to keep the key."""
     for fn in (".env", ".env.example"):
         p = REPO_ROOT / fn
         if not p.is_file():
@@ -59,20 +72,26 @@ def _load_env() -> None:
             if not line or line.startswith("#") or "=" not in line:
                 continue
             k, _, v = line.partition("=")
-            os.environ.setdefault(k.strip(), v.strip())
+            k = k.strip()
+            if agent_sdk and k == "ANTHROPIC_API_KEY":
+                continue  # local harness runs on the subscription, not the paid API key
+            os.environ.setdefault(k, v.strip())
         break  # your own .env wins; fall back to .env.example only when there's no .env
+    if agent_sdk:
+        _use_subscription()  # also drop any key the shell exported
 
 
-def load_agent(agent_dir: str):
+def load_agent(agent_dir: str, model_override: str | None = None):
     """Compose the system prompt: agent.yaml `system` + each attached skill's SKILL.md body
     (read from <agent_dir>/skills/<name>/SKILL.md). Path-agnostic — point it at any agent folder.
 
     This mirrors how a deployed CMA composes model + system + skills, so what you tune locally is
-    what you ship."""
+    what you ship. `model_override` (e.g. from `bench --agent-model`) wins over agent.yaml, so you
+    can A/B a cheaper model without editing files."""
     from .models import resolve
     base = pathlib.Path(agent_dir)
     cfg = yaml.safe_load((base / "agent.yaml").read_text())
-    model = cfg.get("model") or resolve("agent")
+    model = model_override or cfg.get("model") or resolve("agent")
     system = (cfg.get("system") or "").strip()
     for name in cfg.get("skills") or []:
         skill = base / "skills" / name / "SKILL.md"
@@ -148,10 +167,12 @@ def _remote_mcp_servers(entries: list[dict]):
     return servers, allowed
 
 
-def build_options(agent_dir: str, readonly: bool = False) -> ClaudeAgentOptions:
+def build_options(agent_dir: str, readonly: bool = False,
+                  model_override: str | None = None) -> ClaudeAgentOptions:
     """Build SDK options for the agent. `readonly=True` (the mock-bench default) blocks the write/
-    action tools so a local run can never touch the graded store."""
-    model, system = load_agent(agent_dir)
+    action tools so a local run can never touch the graded store. `model_override` swaps the model
+    for a cost/quality A/B without editing agent.yaml."""
+    model, system = load_agent(agent_dir, model_override)
     cfg = yaml.safe_load((pathlib.Path(agent_dir) / "agent.yaml").read_text()) or {}
     entries = cfg.get("mctools") or []
     fn_tools, _ = _load_function_tools(agent_dir, [e for e in entries if isinstance(e, str)])
@@ -186,12 +207,13 @@ class Conversation:
     state persists for the life of the object. `.tool_calls` is the running trace (what the judge
     reads). `.transcript` is the full [{role, text}] history."""
 
-    def __init__(self, agent_dir: str, readonly: bool = False):
+    def __init__(self, agent_dir: str, readonly: bool = False, model_override: str | None = None):
         _load_env()
         self.agent_dir = agent_dir
-        self.options = build_options(agent_dir, readonly=readonly)
+        self.options = build_options(agent_dir, readonly=readonly, model_override=model_override)
         self.model = self.options.model
         self.tool_calls: list[dict] = []      # every tool the agent calls — the "trace"
+        self.usage: list[dict] = []            # per-turn token/cost/latency, one entry per ResultMessage
         self.transcript: list[dict] = []       # [{role: "user"|"agent", text: str}]
         self._loop = asyncio.new_event_loop()
         self._client = ClaudeSDKClient(options=self.options)
@@ -231,7 +253,31 @@ class Conversation:
                         out.append(block.text)
                     elif isinstance(block, ToolUseBlock):
                         self.tool_calls.append({"tool": block.name, "input": block.input})
+            elif isinstance(msg, ResultMessage):
+                # end-of-turn accounting — tokens, the SDK's own cost figure, and latency
+                u = msg.usage or {}
+                self.usage.append({
+                    "input_tokens": u.get("input_tokens"),
+                    "output_tokens": u.get("output_tokens"),
+                    "cache_read_input_tokens": u.get("cache_read_input_tokens"),
+                    "cache_creation_input_tokens": u.get("cache_creation_input_tokens"),
+                    "cost_usd": msg.total_cost_usd,   # may be null on a subscription
+                    "duration_ms": msg.duration_ms,
+                    "duration_api_ms": msg.duration_api_ms,
+                })
         return "".join(out).strip()
+
+    @property
+    def token_totals(self) -> dict:
+        """Summed tokens / cost / latency across this conversation's turns (from the SDK
+        ResultMessages). `cost_usd` is the SDK's own figure (often null on a subscription); the bench
+        also estimates cost from the models.yaml catalog to project the deployed CMA per-run spend."""
+        keys = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+        out = {k: sum((u.get(k) or 0) for u in self.usage) for k in keys}
+        out["cost_usd"] = round(sum((u.get("cost_usd") or 0) for u in self.usage), 6)
+        out["duration_ms"] = sum((u.get("duration_ms") or 0) for u in self.usage)
+        out["turns_measured"] = len(self.usage)
+        return out
 
     def close(self):
         try:

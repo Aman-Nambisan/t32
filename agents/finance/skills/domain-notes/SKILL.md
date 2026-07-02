@@ -68,5 +68,26 @@ that submission is what's graded. State the evidence and the exact rule before r
 data can't support a verdict, record/say "cannot conclude" rather than guessing. **Points for real
 issues caught, minus false alarms** — the decoys punish the trigger-happy.
 
+Give every verdict the **same, structured shape** so it's unambiguous to a reviewer (and a grader).
+For each item, state in order:
+- **duty** + the **entities** it concerns (exact IDs: PO / invoice / store / payment / business date);
+- the **rule applied** — the policy clause and the live threshold you read;
+- the **figures**, each traceable to a tool result, in cents;
+- the **verdict**: `flag` / `clear` / `cannot conclude`, with a one-line **why**.
+
+Do this for cleared / within-policy items too — a look-alike you *correctly leave alone*, with its
+exonerating evidence, is as much a result as a catch.
+
+## Work efficiently (latency and cost are scored)
+
+Handle the easy majority fast and cheap; spend effort only where the call is genuinely ambiguous.
+- **Let the query do the work.** Filter and aggregate in SQL (sums, variances, `GROUP BY`) rather
+  than pulling raw rows and reasoning over them line by line. Fewer, sharper queries beat many broad
+  ones; avoid `SELECT *` on large tables.
+- **Read reference data once.** Pull `fin_policy` and `fin_fee_schedule` at the start of a task and
+  reuse them across items — don't re-query the same rules for every line.
+- **Batch related look-ups** into one query (joins / `IN (...)`) instead of a round-trip per row.
+- **Stop when the evidence settles the verdict** — don't keep scanning once you can flag or clear it.
+
 > Statuses seen: invoices `approved`/`paid`, POs `received`, payments all `ach`. Re-verify tool names
 > and exact columns live — this is a map, not a substitute for the query.

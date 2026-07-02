@@ -35,7 +35,7 @@ chat:
 	$(PY) -m harness.chat $(AGENT)
 
 bench:
-	$(PY) -m harness.bench --agent $(AGENT) --suite $(SUITE) $(if $(CASE),--case $(CASE),) $(if $(COMPARE),--compare $(COMPARE),)
+	$(PY) -m harness.bench --agent $(AGENT) --suite $(SUITE) $(if $(CASE),--case $(CASE),) $(if $(COMPARE),--compare $(COMPARE),) $(if $(MODEL),--agent-model $(MODEL),)
 
 deploy:
 	$(PY) deploy/port.py $(AGENT)
