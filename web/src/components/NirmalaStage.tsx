@@ -265,13 +265,14 @@ function NirmalaAvatar({ mood, emotion, energyRef }: StageProps) {
 export default function NirmalaStage({ mood, emotion, energyRef }: StageProps) {
   return (
     <Canvas
-      camera={{ position: [0, 1.5, 3.4], fov: 34 }}
+      camera={{ position: [0, 1.45, USE_GLB ? 4.1 : 3.4], fov: 32 }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true }}
       shadows
     >
-      <ambientLight intensity={USE_GLB ? 0.85 : 0.45} />
-      <directionalLight position={[2.5, 4, 3]} intensity={USE_GLB ? 2.2 : 1.7} color="#FFE3BC" castShadow />
+      {/* GLB texture has baked shading — flat, soft light hides seams best */}
+      <ambientLight intensity={USE_GLB ? 1.15 : 0.45} />
+      <directionalLight position={[1.5, 5, 4]} intensity={USE_GLB ? 1.3 : 1.7} color="#FFE3BC" castShadow />
       <pointLight position={[-2.5, 2, -1.5]} intensity={12} color="#2E8C63" />
       <pointLight position={[0, 3, -2.5]} intensity={8} color="#D98CB0" />
 
