@@ -42,9 +42,10 @@ provenance, evidence you can trace to source. The approach is aligned with Anthr
 - **Drafts and acts, not just detects** — beyond flagging a leak she'll write the follow-through: a
   formal demand letter to a landlord sitting on a security deposit, the cover email to send with it,
   an itemized dispute. Catching the money is step one; getting it back is the product.
-- **Speaks a McContext controller's language** — a Hinglish-tinted register with automatic Indian ↔
-  English unit conversion (lakh / crore ↔ million / billion) so figures land the way a finance team
-  actually reads them. *(A UX polish we're tuning; the spoken voice is en-IN today.)*
+- **Speaks a McContext controller's language** — a language toggle flips both register *and* money
+  convention: Hinglish mode speaks Indian money (lakh / crore, dual figures like `₹119 Cr ($14.2M)`
+  at a pinned ₹84 demo rate, `₹ Cr` units in the data blocks), English mode pins US convention — so
+  figures land the way the finance team actually reads them.
 - **`/metrics` dashboard** — the agent-quality surface: per-duty worst-case scores, pass-rate,
   deterministic-check results, and est cost/run against the $50 cap, read live from the eval harness.
 
