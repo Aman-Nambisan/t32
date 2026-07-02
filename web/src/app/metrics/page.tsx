@@ -219,24 +219,6 @@ export default function MetricsPage() {
               ))}
             </div>
           </section>
-
-          {/* What to fix */}
-          {run.criticalFailures.length > 0 && (
-            <section className="mb-6">
-              <h2 className="text-lg font-semibold text-[var(--ink)] mb-1">
-                What to fix{" "}
-                <span className="text-[var(--st-critical)]">({run.criticalFailures.length})</span>
-              </h2>
-              <ul className="mt-3 space-y-1.5">
-                {run.criticalFailures.slice(0, 12).map((f, i) => (
-                  <li key={i} className="text-sm text-[var(--sec)] flex gap-2">
-                    <span className="text-[var(--st-critical)]">✕</span>
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </>
       )}
     </main>
