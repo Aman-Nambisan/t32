@@ -3,7 +3,7 @@
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { Html, useGLTF } from "@react-three/drei";
 import type { Emotion, Mood } from "@/lib/types";
 
 const MODEL_URL = "/models/nirmala.glb";
@@ -126,16 +126,39 @@ export default function NirmalaGLB({ mood, emotion, energyRef }: Props) {
 
       <group ref={figure}>
         <primitive object={fitted} />
+
+        {/* Anime-emote layer: instantly-readable facial expression without a
+            face rig — anchored beside the head, billboarded via Html */}
+        {emotion === "angry" && (
+          <Html position={[0.28, 1.68, 0.2]} center distanceFactor={3.2} zIndexRange={[10, 0]}>
+            <span className="emote-pop" style={{ fontSize: 40 }}>💢</span>
+          </Html>
+        )}
+        {emotion === "tax" && (
+          <Html position={[0.3, 1.66, 0.2]} center distanceFactor={3.2} zIndexRange={[10, 0]}>
+            <span className="emote-pop" style={{ fontSize: 38 }}>🤑</span>
+          </Html>
+        )}
+        {emotion === "baton" && (
+          <Html position={[-0.28, 1.68, 0.2]} center distanceFactor={3.2} zIndexRange={[10, 0]}>
+            <span className="emote-pop" style={{ fontSize: 38 }}>😤</span>
+          </Html>
+        )}
+        {mood === "thinking" && emotion === "neutral" && (
+          <Html position={[-0.3, 1.74, 0.15]} center distanceFactor={3.2} zIndexRange={[10, 0]}>
+            <span className="emote-pop" style={{ fontSize: 32 }}>🤔</span>
+          </Html>
+        )}
       </group>
 
       {/* Wagging finger — appears when someone is being naughty */}
-      <group ref={finger} position={[0.5, 1.25, 0.32]} scale={0.0001}>
+      <group ref={finger} position={[0.27, 1.18, 0.24]} scale={0.0001}>
         <mesh rotation={[0, 0, -0.2]}>
-          <cylinderGeometry args={[0.028, 0.034, 0.3, 12]} />
+          <cylinderGeometry args={[0.013, 0.016, 0.15, 12]} />
           <meshStandardMaterial color="#C68863" roughness={0.7} />
         </mesh>
-        <mesh position={[0.03, 0.17, 0]}>
-          <sphereGeometry args={[0.032, 12, 8]} />
+        <mesh position={[0.015, 0.085, 0]}>
+          <sphereGeometry args={[0.016, 12, 8]} />
           <meshStandardMaterial color="#C68863" roughness={0.7} />
         </mesh>
       </group>

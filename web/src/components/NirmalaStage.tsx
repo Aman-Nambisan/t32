@@ -290,14 +290,15 @@ export default function NirmalaStage({ mood, emotion, energyRef }: StageProps) {
       )}
       <ContactShadows position={[0, -0.01, 0]} opacity={0.55} scale={7} blur={2.6} far={2.5} />
 
+      {/* Clamp to the photo-true arc: single-image 3D hallucinates sides/back */}
       <OrbitControls
         target={[0, 1.15, 0]}
         enablePan={false}
         enableZoom={false}
-        minPolarAngle={Math.PI / 2.6}
-        maxPolarAngle={Math.PI / 1.85}
-        minAzimuthAngle={-0.7}
-        maxAzimuthAngle={0.7}
+        minPolarAngle={Math.PI / 2.5}
+        maxPolarAngle={Math.PI / 1.92}
+        minAzimuthAngle={-0.32}
+        maxAzimuthAngle={0.32}
       />
     </Canvas>
   );

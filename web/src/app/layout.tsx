@@ -18,9 +18,9 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Don't Mess With Nirmala",
+  title: "Don't Mess With Narmata",
   description:
-    "Penny, the finance & controls agent for McContext — fronted by the incorruptible Nirmala Tai. Team t32, Atlan AI Hackathon 2026.",
+    "Penny, the finance & controls agent for McContext — fronted by the incorruptible Narmata Tai. Team t32, Atlan AI Hackathon 2026.",
 };
 
 export default function RootLayout({

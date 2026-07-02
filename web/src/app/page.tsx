@@ -43,7 +43,7 @@ export default function Home() {
             Penny · Finance &amp; Controls · Team t32
           </p>
           <h1 className="font-display mt-1 text-3xl font-semibold tracking-tight text-amber-100 md:text-5xl">
-            Don&apos;t Mess With Nirmala
+            Don&apos;t Mess With Narmata
           </h1>
           <p className="mt-2 max-w-xl text-sm text-white/60">
             The incorruptible controller of McContext&apos;s 2,000 stores. She checks every
@@ -77,7 +77,7 @@ export default function Home() {
               ? "Tai is auditing your request…"
               : mood === "speaking"
                 ? "Tai has the floor."
-                : "Smt. Nirmala Tai · Controller-General, McContext"}
+                : "Smt. Narmata Tai · Controller-General, McContext"}
           </div>
         </section>
 

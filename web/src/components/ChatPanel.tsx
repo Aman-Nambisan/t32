@@ -79,7 +79,7 @@ export default function ChatPanel({
     <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-black/30 backdrop-blur">
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
         <div>
-          <p className="text-sm font-semibold text-amber-200">Ask Nirmala Tai</p>
+          <p className="text-sm font-semibold text-amber-200">Ask Narmata Tai</p>
           <p className="text-xs text-white/50">
             {mood === "thinking"
               ? "Consulting the bahi-khata…"
