@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { Suspense, useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, Sparkles } from "@react-three/drei";
+import NirmalaGLB from "@/components/NirmalaGLB";
+import { USE_GLB } from "@/lib/config";
 import type { Emotion, Mood } from "@/lib/types";
 
 type StageProps = {
@@ -268,12 +270,18 @@ export default function NirmalaStage({ mood, emotion, energyRef }: StageProps) {
       gl={{ antialias: true, alpha: true }}
       shadows
     >
-      <ambientLight intensity={0.45} />
-      <directionalLight position={[2.5, 4, 3]} intensity={1.7} color="#FFE3BC" castShadow />
+      <ambientLight intensity={USE_GLB ? 0.85 : 0.45} />
+      <directionalLight position={[2.5, 4, 3]} intensity={USE_GLB ? 2.2 : 1.7} color="#FFE3BC" castShadow />
       <pointLight position={[-2.5, 2, -1.5]} intensity={12} color="#2E8C63" />
       <pointLight position={[0, 3, -2.5]} intensity={8} color="#D98CB0" />
 
-      <NirmalaAvatar mood={mood} emotion={emotion} energyRef={energyRef} />
+      {USE_GLB ? (
+        <Suspense fallback={null}>
+          <NirmalaGLB mood={mood} emotion={emotion} energyRef={energyRef} />
+        </Suspense>
+      ) : (
+        <NirmalaAvatar mood={mood} emotion={emotion} energyRef={energyRef} />
+      )}
 
       <Sparkles count={45} scale={[3.2, 2.6, 3.2]} position={[0, 1.4, 0]} size={2.2} speed={0.3} opacity={0.35} color="#E8C776" />
       {emotion === "tax" && (
