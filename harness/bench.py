@@ -103,6 +103,11 @@ def _run_case(agent_dir: str, case: dict, agent_context: str, judge: Judge,
     }
 
 
+def _fnum(v) -> float:
+    """Coerce a judge axis value to float — judges sometimes emit null/strings for an axis."""
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else 0.0
+
+
 def _run_passed(run: dict) -> bool:
     """A run 'passes' iff it had no hard failures — nothing the judge flagged critical AND no
     deterministic-check failure. This is the unit of pass^k / pass-rate across repeats."""
@@ -144,7 +149,7 @@ def _aggregate(cid: str, tags: list, reps: list[dict]) -> dict:
     axis_keys: set = set()
     for r in reps:
         axis_keys |= set((r["verdict"].get("axes") or {}).keys())
-    mean_axes = {k: round(sum(float((r["verdict"].get("axes") or {}).get(k, 0.0)) for r in reps) / len(reps), 3)
+    mean_axes = {k: round(sum(_fnum((r["verdict"].get("axes") or {}).get(k)) for r in reps) / len(reps), 3)
                  for k in axis_keys}
     # A failure in ANY rep must surface — union the failure strings across reps, don't average them away.
     crit = sorted({c for r in reps for c in r["verdict"].get("critical_failures", [])})
@@ -213,7 +218,7 @@ def _print_report(report: dict, baseline: dict | None) -> None:
 
     for r in report["results"]:
         v = r["verdict"]
-        ax_cells = [f"{float(v.get('axes', {}).get(a, 0)):.2f}" for a in axes]
+        ax_cells = [f"{_fnum(v.get('axes', {}).get(a)):.2f}" for a in axes]
         worst = r.get("score_worst", v.get("weighted", 0.0))
         det = (r.get("deterministic") or {}).get("det_score")
         det_cell = f"{det:.2f}" if det is not None else "–"
@@ -377,6 +382,15 @@ def run(agent_dir: str, suite: str, only_case: str | None = None,
         if R > 1:
             print(f"[bench] running {n} cases × {R} repeat(s) = {len(work)} runs, sequential")
         indexed = [_safe_run(item) for item in work]
+
+    # Checkpoint the raw per-run results the instant the (expensive) agent runs finish — a bug in
+    # aggregation/report below must never discard paid runs (learned the hard way). Overwritten each run.
+    RUNS_DIR.mkdir(exist_ok=True)
+    try:
+        (RUNS_DIR / f"_raw_{pathlib.Path(agent_dir).name}_{suite}.json").write_text(
+            json.dumps([r for _, r in indexed], indent=2, default=str))
+    except Exception:
+        pass
 
     # Group repeat-runs back by case (preserving case order), then collapse to variance-aware results.
     by_case: dict[int, list[dict]] = {}
