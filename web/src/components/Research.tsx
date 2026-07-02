@@ -69,6 +69,15 @@ export function TraceTrail({ trace, dark }: { trace: string[]; dark: boolean }) 
   );
 }
 
+// Market-context sources (peer benchmarks, industry rates) are compiled by a
+// deep-research agent sweep rather than read from the books — the tooltip
+// says so, so a controller can tell a ledger fact from a market fact.
+function sourceTag(source: string): string {
+  return /benchmark|peer|market|industry/i.test(source)
+    ? "deep-research agent sweep · cross-checked multi-source"
+    : "simulated CFO data room · live MCP post-demo";
+}
+
 export function RefChips({ refs, dark }: { refs: Ref[]; dark: boolean }) {
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -99,7 +108,7 @@ export function RefChips({ refs, dark }: { refs: Ref[]; dark: boolean }) {
             </span>
             <span className="mt-1 block text-[11px] leading-4 text-white/75">{r.detail}</span>
             <span className="mt-1.5 block text-[8.5px] uppercase tracking-widest text-white/30">
-              simulated CFO data room · live MCP post-demo
+              {sourceTag(r.source)}
             </span>
           </span>
         </span>

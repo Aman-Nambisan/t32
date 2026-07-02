@@ -146,6 +146,26 @@ flowchart LR
   (tax posture, cloud-cost surgery, peer benchmarks). Governance as a demo, not a slide.
 - **Voice.** Neural TTS in Hinglish (hi-IN) and English (en-IN); boardroom drops pitch and tempo.
 
+### Research agents for market context
+
+Internal figures come from the books; market figures don't. When a question needs the outside world
+— *"what should a chain our size be spending on cloud?"*, *"what's a normal duplicate-payment rate?"*
+— the answer leans on a **peer-benchmark corpus assembled by deep-research agent runs**: a parallel
+sweep across analyst benchmarks, industry reports and vendor pricing (the APQC / ACFE / GEP / ReFED
+lineage in the [product thesis](docs/challenges.md)), cross-checked before a number is admitted.
+Every market figure then surfaces in-chat through the same hoverable-reference contract as internal
+data — labeled with *how* it was gathered, so a controller can tell a ledger fact from a market fact
+at a glance. Live per-question deep research streams into this exact seam.
+
+```mermaid
+flowchart LR
+  Q2["“what should a company<br/>our size be spending?”"] --> RA["deep-research agents<br/>(parallel sweep)"]
+  RA --> S1["analyst benchmarks"] & S2["industry reports"] & S3["peer & vendor pricing"]
+  S1 & S2 & S3 --> XC["cross-check & reconcile —<br/>figures must agree before admission"]
+  XC --> PB[("benchmark corpus<br/>e.g. Peer benchmark PB-26")]
+  PB --> REF["hoverable refs in chat —<br/>every market figure cites its sweep"]
+```
+
 ---
 
 ## Everything we explored (kept, adapted, or deliberately dropped)
