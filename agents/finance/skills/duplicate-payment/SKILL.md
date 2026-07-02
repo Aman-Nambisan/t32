@@ -4,9 +4,14 @@ description: Find an invoice paid twice in payments_out (by reference, amount, a
 ---
 # Duty: duplicate payment
 
-Scan `fin_payments_out` grouped by `invoice_id` / `reference` / `amount_cents`. A **true duplicate** =
-the *same invoice* paid twice (same `invoice_id`, or same `reference`, with near-identical amount + close
-timing).
+Scan `fin_payments_out` for the *same underlying order* paid more than once — look across
+`invoice_id`, `reference`, `amount_cents`, invoice number, and timing.
 
-Decoys that only *look* duplicate — **do NOT flag**: distinct invoices with similar amounts, installments
-(e.g. 2-of-2), and separate references. Match on the invoice/reference identity, not just a repeated amount.
+**A shared supplier invoice number + equal amount is a duplicate ONLY if it's the same underlying
+order.** Before flagging, verify it maps to **one PO and one goods receipt**. Two invoices that share an
+invoice number and amount but sit on **two distinct POs, each with its own goods receipt**, are **two
+real deliveries** — legitimate separate payments, **not** a duplicate (the supplier just reused a number).
+Clear it.
+
+Other decoys — do NOT flag: installments (e.g. 2-of-2), and distinct invoices with similar amounts and
+separate references. Match on the underlying order (PO + goods receipt), not just a repeated number or amount.
