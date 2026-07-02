@@ -11,8 +11,10 @@ help:
 	@echo "make setup                     # create .venv and install deps (uv)"
 	@echo "make verify                    # preflight: check creds + Postgres + MCP work (read-only)"
 	@echo "make chat  AGENT=agents/x       # terminal chat with an agent"
-	@echo "make bench AGENT=agents/x SUITE=y   # run the mock bench (simulator + judge)"
+	@echo "make bench AGENT=agents/x SUITE=y   # run the mock bench (simulator + judge + checks)"
 	@echo "make bench COMPARE=runs/<f>.json    # ...and show deltas vs a prior run"
+	@echo "make bench JOBS=4 REPEATS=3         # ...N cases in parallel; N repeats for variance"
+	@echo "make bench CONTINUE=runs/<f>.json   # ...re-run only that run's errored cases + merge"
 	@echo "make deploy AGENT=agents/x      # port agent.yaml -> Claude Managed Agent (spends CMA \$)"
 	@echo "make deploy-dry AGENT=agents/x  # show the ant command, deploy nothing"
 	@echo "make cma-check CONFIRM=1        # ⚠ SPENDS CREDITS: rare one-off platform smoke test"
@@ -35,7 +37,7 @@ chat:
 	$(PY) -m harness.chat $(AGENT)
 
 bench:
-	$(PY) -m harness.bench --agent $(AGENT) --suite $(SUITE) $(if $(CASE),--case $(CASE),) $(if $(COMPARE),--compare $(COMPARE),) $(if $(MODEL),--agent-model $(MODEL),)
+	$(PY) -m harness.bench --agent $(AGENT) --suite $(SUITE) $(if $(CASE),--case $(CASE),) $(if $(COMPARE),--compare $(COMPARE),) $(if $(MODEL),--agent-model $(MODEL),) $(if $(JOBS),--jobs $(JOBS),) $(if $(REPEATS),--repeats $(REPEATS),) $(if $(CONTINUE),--continue $(CONTINUE),)
 
 deploy:
 	$(PY) deploy/port.py $(AGENT)
