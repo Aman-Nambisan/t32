@@ -9,6 +9,9 @@ export const EMOTIONS: Emotion[] = ["neutral", "angry", "baton", "tax"];
 // governance — some context exists only for some people).
 export type Mode = "public" | "boardroom";
 
+// Hinglish (default flavor) vs plain-English replies + matching TTS voice.
+export type Lang = "hinglish" | "english";
+
 export type ChartPoint = { label: string; value: number };
 
 // Rich in-chat artifacts the model may emit alongside its reply (boardroom
@@ -25,4 +28,15 @@ export type Block =
 
 export const BLOCK_TYPES = ["bar", "line", "donut", "stats", "memo", "coins3d"] as const;
 
-export type ChatMessage = { role: "user" | "assistant"; content: string; blocks?: Block[] };
+// Provenance layer: the investigation steps the model declares it took, and
+// hoverable references naming the source behind each number. Same contract
+// the real Penny agent's run_sql trace will feed later.
+export type Ref = { n: number; source: string; detail: string };
+
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  blocks?: Block[];
+  trace?: string[];
+  refs?: Ref[];
+};

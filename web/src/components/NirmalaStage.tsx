@@ -271,7 +271,7 @@ export default function NirmalaStage({ mood, emotion, energyRef, dark = false }:
   return (
     <Canvas
       key={glNonce}
-      camera={{ position: [0, 1.45, USE_GLB ? 4.1 : 3.4], fov: 32 }}
+      camera={{ position: [0, 1.42, USE_GLB ? 3.55 : 3.4], fov: 32 }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true }}
       shadows
@@ -284,10 +284,10 @@ export default function NirmalaStage({ mood, emotion, energyRef, dark = false }:
     >
       {/* GLB texture has baked shading — flat, soft light hides seams best.
           Boardroom: dim the key, crimson/violet rims, villain underlight. */}
-      <ambientLight intensity={dark ? 0.55 : USE_GLB ? 1.15 : 0.45} />
+      <ambientLight intensity={dark ? 0.85 : USE_GLB ? 1.2 : 0.45} />
       <directionalLight
         position={[1.5, 5, 4]}
-        intensity={dark ? 0.55 : USE_GLB ? 1.3 : 1.7}
+        intensity={dark ? 0.85 : USE_GLB ? 1.3 : 1.7}
         color={dark ? "#FFC9A0" : "#FFE3BC"}
         castShadow
       />

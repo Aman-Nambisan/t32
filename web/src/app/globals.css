@@ -81,6 +81,93 @@ body {
   }
 }
 
+/* Provenance layer: pulsing orb, shimmering active step, cascading trail */
+.research-orb {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: orb-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes orb-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.35) 20%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.35) 80%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer-slide 1.6s linear infinite;
+}
+
+@keyframes shimmer-slide {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.trace-step-in {
+  animation: trace-step 0.4s ease-out both;
+}
+
+@keyframes trace-step {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Chat message entrance */
+.msg-in {
+  animation: msg-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text,
+  .research-orb,
+  .trace-step-in,
+  .msg-in {
+    animation: none;
+  }
+  .shimmer-text {
+    color: rgba(255, 255, 255, 0.7);
+  }
+}
+
 @keyframes gate-shake {
   0%,
   100% {

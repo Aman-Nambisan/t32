@@ -2,15 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import Blocks from "@/components/blocks/Blocks";
-import { EMOTION_FX, GREETINGS, SUGGESTIONS, randomFallback } from "@/lib/lines";
-import type { Block, ChatMessage, Emotion, Mode, Mood } from "@/lib/types";
+import { RefChips, ResearchingBubble, TraceTrail } from "@/components/Research";
+import {
+  EMOTION_CATCHPHRASE_EN,
+  EMOTION_FX,
+  GREETINGS,
+  SUGGESTIONS,
+  randomFallback,
+} from "@/lib/lines";
+import type { Block, ChatMessage, Emotion, Lang, Mode, Mood, Ref } from "@/lib/types";
 
 type ChatPanelProps = {
   mode: Mode;
+  lang: Lang;
+  setLang: (lang: Lang) => void;
   mood: Mood;
   setMood: (mood: Mood) => void;
   onEmotion: (emotion: Emotion) => void;
-  speak: (text: string, dark?: boolean) => Promise<void>;
+  speak: (text: string, dark?: boolean, lang?: Lang) => Promise<void>;
   unlock: () => void;
   muted: boolean;
   setMuted: (muted: boolean) => void;
@@ -49,6 +58,8 @@ const THEME = {
 
 export default function ChatPanel({
   mode,
+  lang,
+  setLang,
   mood,
   setMood,
   onEmotion,
@@ -92,11 +103,13 @@ export default function ChatPanel({
     let reply: string;
     let emotion: Emotion = "neutral";
     let blocks: Block[] | undefined;
+    let trace: string[] | undefined;
+    let refs: Ref[] | undefined;
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, mode }),
+        body: JSON.stringify({ messages: history, mode, lang }),
       });
       const data = await res.json();
       reply = typeof data.reply === "string" && data.reply ? data.reply : randomFallback();
@@ -104,19 +117,26 @@ export default function ChatPanel({
         emotion = data.emotion as Emotion;
       }
       if (Array.isArray(data.blocks) && data.blocks.length) blocks = data.blocks as Block[];
+      if (Array.isArray(data.trace) && data.trace.length) trace = data.trace as string[];
+      if (Array.isArray(data.refs) && data.refs.length) refs = data.refs as Ref[];
     } catch {
       reply = randomFallback();
     }
 
-    const fx =
-      emotion !== "neutral" ? EMOTION_FX[mode][emotion as Exclude<Emotion, "neutral">] : null;
-    const spoken = fx ? `${fx.catchphrase} ${reply}` : reply;
+    const emo = emotion as Exclude<Emotion, "neutral">;
+    const catchphrase =
+      emotion !== "neutral"
+        ? lang === "english"
+          ? EMOTION_CATCHPHRASE_EN[mode][emo]
+          : EMOTION_FX[mode][emo].catchphrase
+        : null;
+    const spoken = catchphrase ? `${catchphrase} ${reply}` : reply;
 
-    append(mode, { role: "assistant", content: spoken, blocks });
+    append(mode, { role: "assistant", content: spoken, blocks, trace, refs });
     setPending(false);
     setMood("speaking");
     onEmotion(emotion);
-    await speak(spoken, dark);
+    await speak(spoken, dark, lang);
     onEmotion("neutral");
     setMood("idle");
   }
@@ -136,33 +156,47 @@ export default function ChatPanel({
             {mood === "thinking" ? t.thinking : mood === "speaking" ? t.speaking : t.idle}
           </p>
         </div>
-        <button
-          onClick={() => setMuted(!muted)}
-          className={`rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 transition ${t.chip}`}
-          title={muted ? "Unmute Tai" : "Mute Tai"}
-        >
-          {muted ? "🔇 muted" : "🔊 voice on"}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setLang(lang === "hinglish" ? "english" : "hinglish")}
+            className={`rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 transition ${t.chip}`}
+            title={lang === "hinglish" ? "Switch Tai to plain English" : "Switch Tai back to Hinglish"}
+          >
+            {lang === "hinglish" ? "🇮🇳 Hinglish" : "🌐 English"}
+          </button>
+          <button
+            onClick={() => setMuted(!muted)}
+            className={`rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 transition ${t.chip}`}
+            title={muted ? "Unmute Tai" : "Mute Tai"}
+          >
+            {muted ? "🔇" : "🔊"}
+          </button>
+        </div>
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4"
+      >
         {messages.map((message, i) => (
           <div
             key={`${mode}-${i}`}
             className={
               message.role === "user"
-                ? "flex justify-end"
-                : "flex flex-col items-start gap-2"
+                ? "msg-in flex justify-end"
+                : "msg-in flex flex-col items-start gap-2"
             }
           >
             <div
               className={
                 message.role === "user"
                   ? `max-w-[85%] rounded-2xl rounded-br-sm px-3.5 py-2 text-sm ${t.userBubble}`
-                  : `max-w-[85%] rounded-2xl rounded-bl-sm border px-3.5 py-2 text-sm ${t.aiBubble}`
+                  : `max-w-[90%] rounded-2xl rounded-bl-sm border px-3.5 py-2.5 text-sm ${t.aiBubble}`
               }
             >
+              {message.trace && <TraceTrail trace={message.trace} dark={dark} />}
               {message.content}
+              {message.refs && <RefChips refs={message.refs} dark={dark} />}
             </div>
             {message.blocks && (
               <div className="w-full max-w-[97%]">
@@ -172,12 +206,8 @@ export default function ChatPanel({
           </div>
         ))}
         {pending && (
-          <div className="flex justify-start">
-            <div
-              className={`rounded-2xl rounded-bl-sm border px-3.5 py-2 text-sm text-white/50 ${t.aiBubble}`}
-            >
-              <span className="animate-pulse">{t.pendingLine}</span>
-            </div>
+          <div className="msg-in flex justify-start">
+            <ResearchingBubble mode={mode} />
           </div>
         )}
       </div>

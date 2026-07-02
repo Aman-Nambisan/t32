@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import ChatPanel from "@/components/ChatPanel";
 import { useSpeech } from "@/hooks/useSpeech";
 import { BOARDROOM_PIN, EMOTION_FX, GREETINGS, WRONG_PIN_LINES } from "@/lib/lines";
-import type { Emotion, Mode, Mood } from "@/lib/types";
+import type { Emotion, Lang, Mode, Mood } from "@/lib/types";
 
 const NirmalaStage = dynamic(() => import("@/components/NirmalaStage"), {
   ssr: false,
@@ -31,7 +31,6 @@ const SKIN = {
     eyebrowText: "text-emerald-300/70",
     h1: "Don't Mess With Narmata",
     h1Text: "text-amber-100",
-    tag: "The incorruptible controller of McContext's 2,000 stores. She checks every purchase order, invoice and settlement — and she cannot be talked out of the rules.",
     seal: "🪷",
     sealCaption: "Ministry of No Nonsense",
     stage: "bg-[radial-gradient(ellipse_at_50%_35%,#1C2B26_0%,#0C1114_70%)]",
@@ -45,7 +44,6 @@ const SKIN = {
     eyebrowText: "text-red-400/80",
     h1: "Narmata: After Hours",
     h1Text: "text-red-100",
-    tag: "Same controller, other side of the desk. In this room she doesn't collect — she tells you where the money leaks, what the cloud really costs, and what the rules allow. This room does not exist.",
     seal: "🕯️",
     sealCaption: "Ministry of Quiet Savings",
     stage: "bg-[radial-gradient(ellipse_at_50%_35%,#2E1016_0%,#0A0508_70%)]",
@@ -57,6 +55,7 @@ const SKIN = {
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("public");
+  const [lang, setLang] = useState<Lang>("hinglish");
   const [mood, setMood] = useState<Mood>("idle");
   const [emotion, setEmotion] = useState<Emotion>("neutral");
   const [emotionNonce, setEmotionNonce] = useState(0);
@@ -82,7 +81,7 @@ export default function Home() {
     <main
       className={`flex min-h-screen flex-col bg-gradient-to-b text-white transition-colors duration-700 md:h-screen md:min-h-0 md:overflow-hidden ${skin.page}`}
     >
-      <header className="flex shrink-0 items-start justify-between gap-4 px-6 pb-2 pt-6 md:px-10">
+      <header className="flex shrink-0 items-start justify-between gap-4 px-6 pb-1 pt-4 md:px-10">
         <div>
           <p
             className={`text-[11px] font-medium uppercase tracking-[0.3em] transition-colors duration-700 ${skin.eyebrowText}`}
@@ -90,18 +89,15 @@ export default function Home() {
             {skin.eyebrow}
           </p>
           <h1
-            className={`font-display mt-1 text-3xl font-semibold tracking-tight transition-colors duration-700 md:text-5xl ${skin.h1Text}`}
+            className={`font-display mt-0.5 text-2xl font-semibold tracking-tight transition-colors duration-700 md:text-4xl ${skin.h1Text}`}
           >
             {skin.h1}
           </h1>
-          <p className="mt-2 max-w-xl text-sm text-white/60">{skin.tag}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
-          <div className="hidden select-none text-right md:block">
-            <p className="text-4xl">{skin.seal}</p>
-            <p className="mt-1 text-[10px] uppercase tracking-widest text-white/40">
-              {skin.sealCaption}
-            </p>
+          <div className="hidden select-none items-center gap-2 md:flex">
+            <p className="text-2xl">{skin.seal}</p>
+            <p className="text-[10px] uppercase tracking-widest text-white/40">{skin.sealCaption}</p>
           </div>
           {mode === "public" ? (
             <button
@@ -118,7 +114,13 @@ export default function Home() {
                   cancel();
                   switchMode("public");
                   setMood("speaking");
-                  void speak("You saw nothing, beta. We were never here.", false).finally(() =>
+                  void speak(
+                    lang === "english"
+                      ? "You saw nothing. We were never here."
+                      : "You saw nothing, beta. We were never here.",
+                    false,
+                    lang,
+                  ).finally(() =>
                     setMood("idle"),
                   );
                 }}
@@ -164,9 +166,11 @@ export default function Home() {
           </div>
         </section>
 
-        <aside className="h-[520px] w-full min-h-0 md:h-full md:w-[400px] lg:w-[430px]">
+        <aside className="h-[520px] w-full min-h-0 md:h-full md:w-[440px] lg:w-[500px] xl:w-[560px]">
           <ChatPanel
             mode={mode}
+            lang={lang}
+            setLang={setLang}
             mood={mood}
             setMood={setMood}
             onEmotion={handleEmotion}
@@ -199,7 +203,7 @@ export default function Home() {
             // The reveal beat: she spins, lights go red, a low laugh, then
             // the whispered welcome.
             setMood("speaking");
-            void speak(`He he he he heh… ${GREETINGS.boardroom}`, true).finally(() =>
+            void speak(`He he he he heh… ${GREETINGS.boardroom}`, true, lang).finally(() =>
               setMood("idle"),
             );
           }}

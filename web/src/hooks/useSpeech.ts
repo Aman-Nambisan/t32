@@ -134,14 +134,18 @@ export function useSpeech() {
   );
 
   const speak = useCallback(
-    async (text: string, dark?: boolean): Promise<void> => {
+    async (text: string, dark?: boolean, lang?: "hinglish" | "english"): Promise<void> => {
       if (mutedRef.current) return speakSilent(text);
 
       try {
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, mode: dark ? "boardroom" : "public" }),
+          body: JSON.stringify({
+            text,
+            mode: dark ? "boardroom" : "public",
+            lang: lang ?? "hinglish",
+          }),
         });
         if (!res.ok) throw new Error(`tts ${res.status}`);
         const blob = await res.blob();

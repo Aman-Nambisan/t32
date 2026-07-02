@@ -76,6 +76,37 @@ export const EMOTION_FX: Record<Mode, Record<Exclude<Emotion, "neutral">, Emotio
   },
 };
 
+// English-only catchphrase overrides: same beats, zero Hindi words.
+export const EMOTION_CATCHPHRASE_EN: Record<Mode, Record<Exclude<Emotion, "neutral">, string>> = {
+  public: {
+    angry: "Don't be naughty!",
+    baton: "Careful now. My baton is also fully tax-compliant.",
+    tax: "Wonderful news, he he he. I will take fifty percent tax out of this also — think of me as your co-founder.",
+  },
+  boardroom: {
+    angry: "No, no, no. Even in this room, we do not do crimes, boss.",
+    baton: "Threaten me? I know where every liability is buried. Sit down.",
+    tax: "He he he… and this one, the taxman will never see. Legally. Legally!",
+  },
+};
+
+// Canned "she is working" steps cycled while the request is in flight; the
+// model's real investigation trail replaces them when the reply lands.
+export const RESEARCHING_STEPS: Record<Mode, string[]> = {
+  public: [
+    "Opening the bahi-khata…",
+    "Summoning the three-way match…",
+    "Cross-checking the policy book…",
+    "Auditing your tone, also…",
+  ],
+  boardroom: [
+    "Dimming the CCTV…",
+    "Unlocking the shadow ledger…",
+    "Pulling numbers nobody prints…",
+    "Checking who else is listening…",
+  ],
+};
+
 // Boardroom PIN gate — pure theatre, but the scoldings are real. The gag:
 // executive security is the world's most-breached password.
 export const BOARDROOM_PIN = "12345678";

@@ -8,7 +8,9 @@ import {
   type Block,
   type ChatMessage,
   type Emotion,
+  type Lang,
   type Mode,
+  type Ref,
 } from "@/lib/types";
 
 // Vercel AI SDK provider: swap this for the deployed CMA agent later by
@@ -22,7 +24,13 @@ const DARK_MODEL = process.env.NIRMALA_DARK_MODEL ?? MODEL;
 const MAX_HISTORY = 12;
 const MAX_MSG_CHARS = 600;
 
-type Parsed = { reply: string; emotion: Emotion; blocks?: Block[] };
+type Parsed = {
+  reply: string;
+  emotion: Emotion;
+  blocks?: Block[];
+  trace?: string[];
+  refs?: Ref[];
+};
 
 function parseModelJson(raw: string): Parsed {
   try {
@@ -31,13 +39,43 @@ function parseModelJson(raw: string): Parsed {
       const parsed = JSON.parse(match[0]);
       if (typeof parsed.reply === "string" && parsed.reply.trim()) {
         const emotion = EMOTIONS.includes(parsed.emotion) ? parsed.emotion : "neutral";
-        return { reply: parsed.reply.trim(), emotion, blocks: sanitizeBlocks(parsed.blocks) };
+        return {
+          reply: parsed.reply.trim(),
+          emotion,
+          blocks: sanitizeBlocks(parsed.blocks),
+          trace: sanitizeTrace(parsed.trace),
+          refs: sanitizeRefs(parsed.refs),
+        };
       }
     }
   } catch {
     // fall through — treat raw text as the reply
   }
   return { reply: raw.trim(), emotion: "neutral" };
+}
+
+function sanitizeTrace(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const steps = raw
+    .slice(0, 4)
+    .map((s) => String(s ?? "").trim().slice(0, 80))
+    .filter(Boolean);
+  return steps.length ? steps : undefined;
+}
+
+function sanitizeRefs(raw: unknown): Ref[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const refs = raw
+    .slice(0, 4)
+    .map((r: { source?: unknown; detail?: unknown }, i: number) => ({
+      n: i + 1,
+      // The fact sheet shows sources as [bracketed] names; models sometimes
+      // echo the brackets — strip them for clean chips.
+      source: String(r?.source ?? "").trim().replace(/^\[+|\]+$/g, "").slice(0, 60),
+      detail: String(r?.detail ?? "").trim().slice(0, 240),
+    }))
+    .filter((r) => r.source && r.detail);
+  return refs.length ? refs : undefined;
 }
 
 // Never trust model-shaped data on the way to the renderer: clamp counts,
@@ -107,12 +145,19 @@ function keywordEmotion(userText: string, mode: Mode): Emotion {
   return "neutral";
 }
 
+// Appended when the user flips the language toggle to plain English.
+const ENGLISH_ONLY = `
+
+LANGUAGE OVERRIDE: Reply in clear English ONLY. Do not use any Hindi or Hinglish words (no beta, arre, theek hai, bas, nahin, bilkul, saab). Same personality, same rules — just fully English.`;
+
 export async function POST(request: Request) {
   let history: ChatMessage[];
   let mode: Mode = "public";
+  let lang: Lang = "hinglish";
   try {
     const body = await request.json();
     mode = body.mode === "boardroom" ? "boardroom" : "public";
+    lang = body.lang === "english" ? "english" : "hinglish";
     history = (body.messages as ChatMessage[])
       .filter(
         (m) =>
@@ -134,19 +179,22 @@ export async function POST(request: Request) {
   const dark = mode === "boardroom";
 
   try {
+    const baseSystem = dark ? NARMATA_DARK_SYSTEM : NIRMALA_SYSTEM;
     const { text } = await generateText({
       model: anthropic(dark ? DARK_MODEL : MODEL),
-      system: dark ? NARMATA_DARK_SYSTEM : NIRMALA_SYSTEM,
+      system: lang === "english" ? baseSystem + ENGLISH_ONLY : baseSystem,
       messages: history,
-      // Boardroom replies carry block JSON — give them room to breathe.
-      maxOutputTokens: dark ? 1100 : 300,
+      // Boardroom replies carry block/provenance JSON — room to breathe.
+      maxOutputTokens: dark ? 1200 : 300,
     });
-    const { reply, emotion, blocks } = parseModelJson(text.trim());
+    const { reply, emotion, blocks, trace, refs } = parseModelJson(text.trim());
     const finalEmotion = emotion === "neutral" ? keywordEmotion(lastUserText, mode) : emotion;
     return Response.json({
       reply: reply || randomFallback(),
       emotion: finalEmotion,
       blocks,
+      trace,
+      refs,
       fallback: !reply,
     });
   } catch (error) {
